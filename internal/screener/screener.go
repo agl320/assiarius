@@ -23,7 +23,7 @@ func Command() *cobra.Command {
 func runScreen(screen string) error {
 	client := screener.New(nil)
 
-	df, err := client.GetScreenerResults("https://finviz.com/screener.ashx?v=111&s=ta_unusualvolume&f=exch_nasd,news_date_today,sh_relvol_o5&o=-volume")
+	df, err := client.GetScreenerResults(screen)
 	if err != nil {
 		return fmt.Errorf("failed to fetch screener %q: %w", screen, err)
 	}
