@@ -1,6 +1,7 @@
 package root
 
 import (
+	"assiarius/internal/screener"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
@@ -9,6 +10,10 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "assi",
 	Short: "Assiarius CLI",
+}
+
+func init() {
+	rootCmd.AddCommand(screener.Command())
 }
 
 func Execute() {
