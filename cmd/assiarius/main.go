@@ -1,10 +1,12 @@
 package main
 
 import (
-	"assiarius/internal/testing"
+	"assiarius/internal/debug"
+	"assiarius/internal/root"
 	"fmt"
 )
 
 func main() {
-	fmt.Println(testing.SayHello("Taco"))
+	fmt.Println(debug.Debug("Assiarius is starting..."))
+	root.Execute()
 }

@@ -1,6 +1,10 @@
 package root
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"github.com/spf13/cobra"
+	"os"
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "assi",
@@ -10,6 +14,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		return
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
