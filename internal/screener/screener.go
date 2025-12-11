@@ -2,10 +2,20 @@ package screener
 
 import (
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/d3an/finviz/screener"
 	"github.com/go-gota/gota/dataframe"
 	"github.com/spf13/cobra"
+	"net/http"
+	"regexp"
+	"strings"
 )
+
+type NewsItem struct {
+	Headline string
+	Link     string
+	Time     string
+}
 
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
@@ -35,8 +45,63 @@ func RunScreen(screen string) error {
 func extractNewsSlice(df *dataframe.DataFrame) {
 	records := df.Select(1).Records()
 	for index, record := range records {
-		ticker := record[0]
-		url := "https://finviz.com/quote.ashx?t=" + ticker
-		fmt.Println(index, ticker, url)
+		if len(record) > 0 {
+			ticker := cleanTicker(record[0])
+			if ticker == "" {
+				continue
+			}
+			newsSlice := fetchTickerNewsItem(ticker)
+			fmt.Println(index, ticker, len(newsSlice))
+		}
 	}
+}
+
+func cleanTicker(s string) string {
+	s = strings.ToUpper(s)
+
+	re := regexp.MustCompile(`[^A-Z0-9]`)
+	s = re.ReplaceAllString(s, "")
+
+	return s
+}
+
+func fetchTickerNewsItem(ticker string) []NewsItem {
+	url := "https://finviz.com/quote.ashx?t=" + ticker
+	fmt.Println(url)
+
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		fmt.Println("error during page retrieval")
+		return []NewsItem{}
+	}
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		fmt.Println("error during page reading")
+		return []NewsItem{}
+	}
+
+	var items []NewsItem
+
+	selection := doc.Find("table#news-table tr")
+	selection.Each(func(index int, s *goquery.Selection) {
+		linkTag := s.Find("a")
+		if linkTag.Length() == 0 {
+			return
+		}
+		headline := linkTag.Text()
+		href, _ := linkTag.Attr("href")
+		timeOrDate := s.Find("td").First().Text()
+
+		items = append(items, NewsItem{
+			Headline: headline,
+			Link:     href,
+			Time:     timeOrDate,
+		})
+	})
+
+	return items
 }
