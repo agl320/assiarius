@@ -3,12 +3,21 @@ module assiarius
 go 1.25.1
 
 require (
+	github.com/d3an/finviz v1.2.3
+	github.com/spf13/cobra v1.10.2
+)
+
+require (
+	github.com/PuerkitoBio/goquery v1.11.0 // indirect
+	github.com/andybalholm/cascadia v1.3.3 // indirect
+	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
+	github.com/corpix/uarand v0.1.1 // indirect
+	github.com/dnaeon/go-vcr v1.2.0 // indirect
+	github.com/go-gota/gota v0.12.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/spf13/cobra v1.10.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/mod v0.31.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/telemetry v0.0.0-20251203150158-8fff8a5912fc // indirect
-	golang.org/x/tools v0.40.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	gonum.org/v1/gonum v0.9.3 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
