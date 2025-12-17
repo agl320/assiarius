@@ -1,6 +1,7 @@
 package root
 
 import (
+	"assiarius/internal/debug"
 	"assiarius/internal/poll"
 	"assiarius/internal/screener"
 	"fmt"
@@ -16,6 +17,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(screener.Command())
 	rootCmd.AddCommand(poll.Command())
+	rootCmd.AddCommand(debug.Command())
 }
 
 func Execute() {
