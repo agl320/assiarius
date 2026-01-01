@@ -1,5 +1,5 @@
 package debug
 
-func Debug(message string) string {
+func DebugPrint(message string) string {
 	return "[DEBUG]: " + message
 }
