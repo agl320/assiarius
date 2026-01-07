@@ -101,6 +101,9 @@ func fetchTickerNewsItem(ticker string) []NewsItem {
 			Link:     href,
 			Time:     timeOrDate,
 		})
+
+		// Send link to web scraper
+		
 	})
 
 	return items
