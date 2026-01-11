@@ -1,19 +1,45 @@
-package root
+package cmd
 
 import (
 	"assiarius/internal/debug"
+	"assiarius/internal/llm"
 	"assiarius/internal/poll"
 	"assiarius/internal/read"
 	"assiarius/internal/screener"
 	"fmt"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
+
+type App struct {
+	LLM llm.Client
+}
+
+var app App
 
 var rootCmd = &cobra.Command{
 	Use:   "assi",
 	Short: "Assiarius CLI",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		_ = godotenv.Load()
+
+		cfg := llm.Config{
+			GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
+		}
+
+		client, err := llm.NewGeminiClient(cfg)
+		if err != nil {
+			return err
+		}
+
+		app = App{
+			LLM: client,
+		}
+
+		return nil
+	}, 
 }
 
 func init() {
