@@ -1,11 +1,7 @@
 package cmd
 
 import (
-	"assiarius/internal/debug"
 	"assiarius/internal/llm"
-	"assiarius/internal/poll"
-	"assiarius/internal/read"
-	"assiarius/internal/screener"
 	"fmt"
 	"os"
 
@@ -43,10 +39,9 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(screener.Command())
-	rootCmd.AddCommand(poll.Command())
-	rootCmd.AddCommand(debug.Command())
-	rootCmd.AddCommand(read.Command())
+	rootCmd.AddCommand(screenerCommand())
+	rootCmd.AddCommand(pollCommand())
+	rootCmd.AddCommand(readCommand())
 }
 
 func Execute() {

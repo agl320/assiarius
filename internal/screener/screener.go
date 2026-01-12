@@ -2,32 +2,19 @@ package screener
 
 import (
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
-	"github.com/d3an/finviz/screener"
-	"github.com/go-gota/gota/dataframe"
-	"github.com/spf13/cobra"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/d3an/finviz/screener"
+	"github.com/go-gota/gota/dataframe"
 )
 
 type NewsItem struct {
 	Headline string
 	Link     string
 	Time     string
-}
-
-func Command() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "screen [preset]",
-		Short: "Run a single Finviz screener preset",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunScreen(args[0])
-		},
-	}
-
-	return cmd
 }
 
 func RunScreen(screen string) error {

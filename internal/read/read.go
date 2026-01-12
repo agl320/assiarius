@@ -9,21 +9,7 @@ import (
 	"time"
 
 	"github.com/go-shiori/go-readability"
-	"github.com/spf13/cobra"
 )
-
-func Command() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "read [link]",
-		Short: "Read news from a given link",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return ReadNewsFromLink(args[0])
-		},
-	}
-
-	return cmd
-}
 
 func ReadNewsFromLink(link string) error {
 	// Methods of extraction: 
