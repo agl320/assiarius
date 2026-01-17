@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"assiarius/internal/llm"
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -21,11 +23,14 @@ var rootCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		_ = godotenv.Load()
 
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
 		cfg := llm.Config{
 			GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
 		}
 
-		client, err := llm.NewGeminiClient(cfg)
+		client, err := llm.NewGeminiClient(ctx, cfg)
 		if err != nil {
 			return err
 		}
@@ -35,19 +40,20 @@ var rootCmd = &cobra.Command{
 		}
 
 		return nil
-	}, 
+	},
 }
 
 func init() {
 	rootCmd.AddCommand(screenerCommand())
 	rootCmd.AddCommand(pollCommand())
 	rootCmd.AddCommand(readCommand())
+	rootCmd.AddCommand(llmCommand(&app))
 }
 
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	func Execute() {
+		err := rootCmd.Execute()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
-}

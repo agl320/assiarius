@@ -1,6 +1,7 @@
 package screener
 
 import (
+	"assiarius/internal/scraper"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -30,13 +31,18 @@ func RunScreen(screen string) error {
 }
 
 func extractNewsSlice(df *dataframe.DataFrame) {
-	records := df.Select(1).Records()
-	for index, record := range records {
+	colNames := df.Names()
+	records := df.Records()
+
+	fixedRecords := append([][]string{colNames}, records...)
+
+	for index, record := range fixedRecords {
 		if len(record) > 0 {
-			ticker := cleanTicker(record[0])
+			ticker := cleanTicker(record[1])
 			if ticker == "" {
 				continue
 			}
+			scraper.ReadRelativeVolume(ticker)
 			newsSlice := fetchTickerNewsItem(ticker)
 			fmt.Println(index, ticker, len(newsSlice))
 		}
@@ -89,8 +95,6 @@ func fetchTickerNewsItem(ticker string) []NewsItem {
 			Time:     timeOrDate,
 		})
 
-		// Send link to web scraper
-		
 	})
 
 	return items

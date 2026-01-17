@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"assiarius/internal/read"
-
 	"github.com/spf13/cobra"
+	"assiarius/internal/read"
 )
 
 func readCommand() *cobra.Command {
