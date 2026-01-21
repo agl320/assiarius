@@ -35,7 +35,7 @@ func extractNewsSlice(df *dataframe.DataFrame) {
 	records := df.Records()
 
 	fixedRecords := append([][]string{colNames}, records...)
-	scraper.ReadRelativeVolume(fixedRecords[0][1])
+	scraper.ReadTickerStatistics(fixedRecords[0][1])
 
 	for index, record := range fixedRecords {
 		if len(record) > 0 {
@@ -43,7 +43,7 @@ func extractNewsSlice(df *dataframe.DataFrame) {
 			if ticker == "" {
 				continue
 			}
-		
+
 			newsSlice := fetchTickerNewsItem(ticker)
 			fmt.Println(index, ticker, len(newsSlice))
 		}

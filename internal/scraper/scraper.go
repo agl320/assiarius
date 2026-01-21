@@ -8,7 +8,7 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
-func ReadRelativeVolume(ticker string) {
+func ReadTickerStatistics(ticker string) {
 	fmt.Printf("Fetching relative volume for ticker: %s\n", ticker)
 	url := "https://finviz.com/quote.ashx?t=" + ticker
 
