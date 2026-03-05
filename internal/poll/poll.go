@@ -12,8 +12,8 @@ type ScreenerResult struct {
 	Price  float64
 }
 
-func StartPoller(ctx context.Context, screen string) error {
-	ticker := time.NewTicker(15 * time.Second)
+func StartPoller(ctx context.Context, screen string, interval time.Duration) error {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	fmt.Println("Poll started...")
