@@ -18,3 +18,17 @@ func screenerCommand() *cobra.Command {
 
 	return cmd
 }
+
+func fetchTickerNewsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "news [ticker]",
+		Short: "Fetch news for a ticker",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			screener.GetNewsForTicker(args[0])
+			return nil
+		},
+	}
+
+	return cmd
+}

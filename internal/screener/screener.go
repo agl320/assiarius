@@ -44,7 +44,7 @@ func extractNewsSlice(df *dataframe.DataFrame) {
 				continue
 			}
 
-			newsSlice := fetchTickerNewsItem(ticker)
+			newsSlice := FetchTickerNewsItem(ticker)
 			fmt.Println(index, ticker, len(newsSlice))
 		}
 	}
@@ -59,7 +59,17 @@ func cleanTicker(s string) string {
 	return s
 }
 
-func fetchTickerNewsItem(ticker string) []NewsItem {
+func GetNewsForTicker(ticker string) []NewsItem {
+	newsItems := FetchTickerNewsItem(ticker)
+
+	for index, item := range newsItems {
+		fmt.Printf("%d: %s - %s\n", index, item.Headline, item.Link)
+	}
+
+	return newsItems
+}
+
+func FetchTickerNewsItem(ticker string) []NewsItem {
 	url := "https://finviz.com/quote.ashx?t=" + ticker
 	fmt.Println(url)
 
@@ -72,6 +82,7 @@ func fetchTickerNewsItem(ticker string) []NewsItem {
 		fmt.Println("error during page retrieval")
 		return []NewsItem{}
 	}
+	defer resp.Body.Close()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		fmt.Println("error during page reading")
