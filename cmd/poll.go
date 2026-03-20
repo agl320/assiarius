@@ -17,9 +17,10 @@ func pollCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			// default
+			// Default
 			interval := 15 * time.Second
 			if len(args) == 2 {
+				// More flexible than parseInt()
 				if seconds, err := strconv.Atoi(args[1]); err == nil {
 					if seconds <= 0 {
 						return fmt.Errorf("intervalSeconds must be a positive integer, got %d", seconds)
