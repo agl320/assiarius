@@ -69,6 +69,7 @@ func GetNewsForTicker(ticker string) []NewsItem {
 	return newsItems
 }
 
+// FetchTickerNewsItem scrapes the news items for a given ticker from Finviz.
 func FetchTickerNewsItem(ticker string) []NewsItem {
 	url := "https://finviz.com/quote.ashx?t=" + ticker
 	fmt.Println(url)

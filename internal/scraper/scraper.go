@@ -8,6 +8,7 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
+// This file contains ad-hoc scrapers for specific Finviz pages, used by the screener command.
 func ReadTickerStatistics(ticker string) {
 	fmt.Printf("Fetching relative volume for ticker: %s\n", ticker)
 	url := "https://finviz.com/quote.ashx?t=" + ticker
