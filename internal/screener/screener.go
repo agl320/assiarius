@@ -1,7 +1,6 @@
 package screener
 
 import (
-	"assiarius/internal/scraper"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -20,12 +19,18 @@ type NewsItem struct {
 
 func RunScreen(screen string) error {
 	client := screener.New(nil)
-
+	fmt.Print("Getting screener results...")
 	df, err := client.GetScreenerResults(screen)
 	if err != nil {
 		return fmt.Errorf("failed to fetch screener %q: %w", screen, err)
 	}
 
+	if df == nil || df.Nrow() == 0 {
+		fmt.Printf("No results found for screener %q\n", screen)
+		return nil
+	}
+
+	fmt.Print("Extracting news for screener results...")
 	extractNewsSlice(df)
 	return nil
 }
@@ -35,7 +40,8 @@ func extractNewsSlice(df *dataframe.DataFrame) {
 	records := df.Records()
 
 	fixedRecords := append([][]string{colNames}, records...)
-	scraper.ReadTickerStatistics(fixedRecords[0][1])
+	//fmt.Printf("Fixed Records: %+v\n", fixedRecords)
+	//scraper.ReadTickerStatistics(fixedRecords[0][1])
 
 	for index, record := range fixedRecords {
 		if len(record) > 0 {
@@ -44,8 +50,8 @@ func extractNewsSlice(df *dataframe.DataFrame) {
 				continue
 			}
 
-			newsSlice := FetchTickerNewsItem(ticker)
-			fmt.Println(index, ticker, len(newsSlice))
+			//newsSlice := FetchTickerNewsItem(ticker)
+			fmt.Println(index, ticker)
 		}
 	}
 }
@@ -62,6 +68,7 @@ func cleanTicker(s string) string {
 func GetNewsForTicker(ticker string) []NewsItem {
 	newsItems := FetchTickerNewsItem(ticker)
 
+	fmt.Print("News results:")
 	for index, item := range newsItems {
 		fmt.Printf("%d: %s - %s\n", index, item.Headline, item.Link)
 	}
@@ -107,7 +114,6 @@ func FetchTickerNewsItem(ticker string) []NewsItem {
 			Link:     href,
 			Time:     timeOrDate,
 		})
-
 	})
 
 	return items
