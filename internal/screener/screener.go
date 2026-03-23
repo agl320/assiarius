@@ -9,6 +9,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/d3an/finviz/screener"
 	"github.com/go-gota/gota/dataframe"
+
+	"assiarius/internal/scraper"
 )
 
 type NewsItem struct {
@@ -115,6 +117,16 @@ func FetchTickerNewsItem(ticker string) []NewsItem {
 			Time:     timeOrDate,
 		})
 	})
+
+	if items != nil {
+		text, links := scraper.ExtractNewsFromLink(items[0].Link)
+		if text != "" {
+			fmt.Println(text)
+		}
+		if len(links) > 0 {
+			fmt.Printf("Found %d links in article\n", len(links))
+		}
+	}
 
 	return items
 }
