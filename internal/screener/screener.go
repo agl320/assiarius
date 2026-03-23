@@ -73,6 +73,14 @@ func GetNewsForTicker(ticker string) []NewsItem {
 		if strings.Contains(item.Time, "Today") {
 			fmt.Printf("%d: %s - %s\n", i, item.Headline, item.Link)
 		}
+
+		text, links := scraper.ExtractNewsFromLink(item.Link)
+		if text != "" {
+			fmt.Println(text)
+		}
+		if len(links) > 0 {
+			fmt.Printf("Found %d links in article\n", len(links))
+		}
 	}
 
 	return newsItems
@@ -116,17 +124,9 @@ func FetchTickerNewsItem(ticker string) []NewsItem {
 			Link:     href,
 			Time:     timeOrDate,
 		})
-	})
 
-	if items != nil {
-		text, links := scraper.ExtractNewsFromLink(items[0].Link)
-		if text != "" {
-			fmt.Println(text)
-		}
-		if len(links) > 0 {
-			fmt.Printf("Found %d links in article\n", len(links))
-		}
-	}
+	
+	})
 
 	return items
 }

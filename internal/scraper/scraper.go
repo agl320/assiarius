@@ -70,14 +70,18 @@ func ExtractNewsFromLink(link string) (string, []string) {
 		return "", []string{}
 	}
 	if (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
-		fmt.Println("External link detected, skipping news extraction.")
-		return "", []string{}
+		return extractNewsFromExternalLink(url)
 	}
-
+	url = "https://finviz.com" + url
 	return extractNewsFromFinvizLink(url)
 }
 
+func extractNewsFromExternalLink(url string) (string, []string) {
+	return "", []string{}
+}
+
 func extractNewsFromFinvizLink(url string) (string, []string) {
+	fmt.Println("Extracting news from Finviz link:", url)
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
