@@ -19,7 +19,7 @@ type NewsItem struct {
 
 func RunScreen(screen string) error {
 	client := screener.New(nil)
-	fmt.Print("Getting screener results...")
+	fmt.Println("Getting screener results...")
 	df, err := client.GetScreenerResults(screen)
 	if err != nil {
 		return fmt.Errorf("failed to fetch screener %q: %w", screen, err)
@@ -30,30 +30,26 @@ func RunScreen(screen string) error {
 		return nil
 	}
 
-	fmt.Print("Extracting news for screener results...")
+	fmt.Println("Extracting news for screener results...")
 	extractNewsSlice(df)
 	return nil
 }
 
 func extractNewsSlice(df *dataframe.DataFrame) {
-	colNames := df.Names()
 	records := df.Records()
 
-	fixedRecords := append([][]string{colNames}, records...)
-	//fmt.Printf("Fixed Records: %+v\n", fixedRecords)
-	//scraper.ReadTickerStatistics(fixedRecords[0][1])
-
-	for index, record := range fixedRecords {
+	for index, record := range records {
 		if len(record) > 0 {
 			ticker := cleanTicker(record[1])
 			if ticker == "" {
 				continue
 			}
 
-			//newsSlice := FetchTickerNewsItem(ticker)
 			fmt.Println(index, ticker)
+			GetNewsForTicker(ticker)
 		}
 	}
+	
 }
 
 func cleanTicker(s string) string {
@@ -66,11 +62,15 @@ func cleanTicker(s string) string {
 }
 
 func GetNewsForTicker(ticker string) []NewsItem {
+	fmt.Println("News results:")
+
 	newsItems := FetchTickerNewsItem(ticker)
 
-	fmt.Print("News results:")
-	for index, item := range newsItems {
-		fmt.Printf("%d: %s - %s\n", index, item.Headline, item.Link)
+	for i := 0; i < len(newsItems) && i < 1; i++ {
+		item := newsItems[i]
+		if strings.Contains(item.Time, "Today") {
+			fmt.Printf("%d: %s - %s\n", i, item.Headline, item.Link)
+		}
 	}
 
 	return newsItems
