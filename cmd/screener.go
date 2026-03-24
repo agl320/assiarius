@@ -7,14 +7,18 @@ import (
 )
 
 func screenerCommand() *cobra.Command {
+	var includeNews bool
+
 	cmd := &cobra.Command{
 		Use:   "screen [preset]",
 		Short: "Run a single Finviz screener preset",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return screener.RunScreen(args[0])
+			return screener.RunScreen(args[0], includeNews)
 		},
 	}
+
+	cmd.Flags().BoolVar(&includeNews, "news", true, "Fetch per-ticker news for screener results")
 
 	return cmd
 }

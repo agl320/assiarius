@@ -20,7 +20,7 @@ func StartPoller(ctx context.Context, screen string, interval time.Duration) err
 	for {
 		// wait for channel
 		<-ticker.C
-		err := screener.RunScreen(screen)
+		err := screener.RunScreen(screen, true)
 		if err != nil {
 			return err
 		}

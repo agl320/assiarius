@@ -19,7 +19,7 @@ type NewsItem struct {
 	Time     string
 }
 
-func RunScreen(screen string) error {
+func RunScreen(screen string, includeNews bool) error {
 	client := screener.New(nil)
 	fmt.Println("Getting screener results...")
 	df, err := client.GetScreenerResults(screen)
@@ -32,9 +32,27 @@ func RunScreen(screen string) error {
 		return nil
 	}
 
-	fmt.Println("Extracting news for screener results...")
-	extractNewsSlice(df)
+	if includeNews {
+		fmt.Println("Extracting news for screener results...")
+		extractNewsSlice(df)
+		return nil
+	}
+
+	printTickers(df)
 	return nil
+}
+
+func printTickers(df *dataframe.DataFrame) {
+	records := df.Records()
+	for index, record := range records {
+		if len(record) > 1 {
+			ticker := cleanTicker(record[1])
+			if ticker == "" {
+				continue
+			}
+			fmt.Println(index, ticker)
+		}
+	}
 }
 
 func extractNewsSlice(df *dataframe.DataFrame) {
