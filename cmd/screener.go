@@ -18,7 +18,7 @@ func screenerCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&includeNews, "news", true, "Fetch per-ticker news for screener results")
+	cmd.Flags().BoolVar(&includeNews, "news", false, "Fetch per-ticker news for screener results")
 
 	return cmd
 }

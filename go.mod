@@ -63,4 +63,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/d3an/finviz => github.com/agl320/finviz v0.0.0-20260323005055-cf528eb432bc
+replace github.com/d3an/finviz => github.com/agl320/finviz v1.0.2-0.20260326050341-19484f900b92

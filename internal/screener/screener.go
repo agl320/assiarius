@@ -21,7 +21,6 @@ type NewsItem struct {
 
 func RunScreen(screen string, includeNews bool) error {
 	client := screener.New(nil)
-	fmt.Println("Getting screener results...")
 	df, err := client.GetScreenerResults(screen)
 	if err != nil {
 		return fmt.Errorf("failed to fetch screener %q: %w", screen, err)
@@ -33,7 +32,6 @@ func RunScreen(screen string, includeNews bool) error {
 	}
 
 	if includeNews {
-		fmt.Println("Extracting news for screener results...")
 		extractNewsSlice(df)
 		return nil
 	}

@@ -12,8 +12,8 @@ github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF0
 github.com/Masterminds/vcs v1.13.0/go.mod h1:N09YCmOQr6RLxC6UNHzuVwAdodYbbnycGHSmwVJjcKA=
 github.com/PuerkitoBio/goquery v1.11.0 h1:jZ7pwMQXIITcUXNH83LLk+txlaEy6NVOfTuP43xxfqw=
 github.com/PuerkitoBio/goquery v1.11.0/go.mod h1:wQHgxUOU3JGuj3oD/QFfxUdlzW6xPHfqyHre6VMY4DQ=
-github.com/agl320/finviz v0.0.0-20260323005055-cf528eb432bc h1:enlj3IfMt+JGXiUjjg1KU8mtbXeIrXge6zYOez4/mpE=
-github.com/agl320/finviz v0.0.0-20260323005055-cf528eb432bc/go.mod h1:nKADOcEcYsAcRy9yhRylG6odgrBRLQUhOJhmZ2lpXG8=
+github.com/agl320/finviz v1.0.2-0.20260326050341-19484f900b92 h1:rBMpjP0sLm0/h6kgmdk6swnD6vMF4FOycT9MukezjLY=
+github.com/agl320/finviz v1.0.2-0.20260326050341-19484f900b92/go.mod h1:nKADOcEcYsAcRy9yhRylG6odgrBRLQUhOJhmZ2lpXG8=
 github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
 github.com/andybalholm/cascadia v1.3.3 h1:AG2YHrzJIm4BZ19iwJ/DAua6Btl3IwJX+VI4kktS1LM=
 github.com/andybalholm/cascadia v1.3.3/go.mod h1:xNd9bqTn98Ln4DwST8/nG+H0yuB8Hmgu1YHNnWw0GeA=
