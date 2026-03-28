@@ -156,14 +156,14 @@ func FetchTickerNewsItem(ticker string) []NewsItem {
 	return items
 }
 
-
+// getVerdictFromGemini sends the article text to Gemini and retrieves a sentiment verdict.
 func getVerdictFromGemini(ctx context.Context, text string, llmClient llm.Client) (string, error) {
 	if llmClient == nil {
 		return "", fmt.Errorf("LLM client is not configured")
 	}
 
 	result, err := llmClient.Process(ctx, llm.Prompt{
-		Prompt:  "Determine if the news article is POSITIVE, NEGATIVE, NEUTRAL, or UNDETERMINED for the stock mentioned. Only respond with a single sentence.",
+		Prompt:  "Determine if the news article is VERY POSITIVE, POSITIVE, NEUTRAL, NEGATIVE, VERY NEGATIVE or UNDETERMINED for the stock mentioned. Only respond with a single sentence.",
 		Message: text,
 	})
 	if err != nil {
