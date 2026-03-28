@@ -12,13 +12,25 @@ import (
 )
 
 func ReadNewsFromLink(link string) error {
-	// Methods of extraction: 
+	text, err := ReadNewsTextFromLink(link)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(text)
+	return nil
+}
+
+// ReadNewsTextFromLink fetches the URL and extracts the primary readable text content.
+// This is the reusable core used by both CLI commands and other packages.
+func ReadNewsTextFromLink(link string) (string, error) {
+	// Methods of extraction:
 	// Streaming: no buffering, cannot be re-read, single-pass
 	// In-memory buffering (RAM): what we do, fast
 	// Disc buffering (Disc): more storage but slower + requires cleanup
 	parsedURL, err := url.Parse(link)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// cookies
@@ -31,7 +43,7 @@ func ReadNewsFromLink(link string) error {
 
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// headers
@@ -48,19 +60,20 @@ func ReadNewsFromLink(link string) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	// read bytes response
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(resp.Body)
+	if _, err := buf.ReadFrom(resp.Body); err != nil {
+		return "", err
+	}
 
 	article, err := readability.FromReader(bytes.NewReader(buf.Bytes()), parsedURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	fmt.Println(article.TextContent)
-	return nil
+	return article.TextContent, nil
 }

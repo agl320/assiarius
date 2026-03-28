@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"assiarius/internal/read"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 )
@@ -77,7 +79,12 @@ func ExtractNewsFromLink(link string) (string, []string) {
 }
 
 func extractNewsFromExternalLink(url string) (string, []string) {
-	return "", []string{}
+	text, err := read.ReadNewsTextFromLink(url)
+	if err != nil {
+		fmt.Println("error extracting external article:", err)
+		return "", []string{}
+	}
+	return text, []string{}
 }
 
 func extractNewsFromFinvizLink(url string) (string, []string) {
