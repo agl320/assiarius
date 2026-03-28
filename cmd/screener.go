@@ -14,7 +14,7 @@ func screenerCommand() *cobra.Command {
 		Short: "Run a single Finviz screener preset",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return screener.RunScreen(args[0], includeNews)
+			return screener.RunScreen(cmd.Context(), args[0], includeNews, app.LLM)
 		},
 	}
 
@@ -29,7 +29,7 @@ func fetchTickerNewsCommand() *cobra.Command {
 		Short: "Fetch news for a ticker",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			screener.GetNewsForTicker(args[0])
+			screener.GetNewsForTicker(cmd.Context(), args[0], app.LLM)
 			return nil
 		},
 	}

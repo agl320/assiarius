@@ -1,6 +1,7 @@
 package screener
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"github.com/d3an/finviz/screener"
 	"github.com/go-gota/gota/dataframe"
 
+	"assiarius/internal/llm"
 	"assiarius/internal/scraper"
 )
 
@@ -19,7 +21,7 @@ type NewsItem struct {
 	Time     string
 }
 
-func RunScreen(screen string, includeNews bool) error {
+func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) error {
 	client := screener.New(nil)
 	df, err := client.GetScreenerResults(screen)
 	if err != nil {
@@ -32,7 +34,7 @@ func RunScreen(screen string, includeNews bool) error {
 	}
 
 	if includeNews {
-		extractNewsSlice(df)
+		extractNewsSlice(ctx, df, llmClient)
 		return nil
 	}
 
@@ -53,7 +55,7 @@ func printTickers(df *dataframe.DataFrame) {
 	}
 }
 
-func extractNewsSlice(df *dataframe.DataFrame) {
+func extractNewsSlice(ctx context.Context, df *dataframe.DataFrame, llmClient llm.Client) {
 	records := df.Records()
 
 	for index, record := range records {
@@ -64,7 +66,7 @@ func extractNewsSlice(df *dataframe.DataFrame) {
 			}
 
 			fmt.Println(index, ticker)
-			GetNewsForTicker(ticker)
+			GetNewsForTicker(ctx, ticker, llmClient)
 		}
 	}
 	
@@ -79,7 +81,7 @@ func cleanTicker(s string) string {
 	return s
 }
 
-func GetNewsForTicker(ticker string) []NewsItem {
+func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) []NewsItem {
 	fmt.Println("News results:")
 
 	newsItems := FetchTickerNewsItem(ticker)
@@ -96,6 +98,13 @@ func GetNewsForTicker(ticker string) []NewsItem {
 		}
 		if len(links) > 0 {
 			fmt.Printf("Found %d links in article\n", len(links))
+		}
+
+		verdict, err := getVerdictFromGemini(ctx, text, llmClient)
+		if err != nil {
+			fmt.Println("Error getting verdict:", err)
+		} else {
+			fmt.Printf("Verdict for article %d: %s\n", i, verdict)
 		}
 	}
 
@@ -145,4 +154,20 @@ func FetchTickerNewsItem(ticker string) []NewsItem {
 	})
 
 	return items
+}
+
+
+func getVerdictFromGemini(ctx context.Context, text string, llmClient llm.Client) (string, error) {
+	if llmClient == nil {
+		return "", fmt.Errorf("LLM client is not configured")
+	}
+
+	result, err := llmClient.Process(ctx, llm.Prompt{
+		Prompt:  "Determine if the news article is POSITIVE, NEGATIVE, NEUTRAL, or UNDETERMINED for the stock mentioned. Only respond with a single sentence.",
+		Message: text,
+	})
+	if err != nil {
+		return "", err
+	}
+	return result, nil
 }

@@ -38,7 +38,7 @@ func pollCommand() *cobra.Command {
 				}
 			}
 
-			return poll.StartPoller(ctx, args[0], interval)
+			return poll.StartPoller(ctx, args[0], interval, app.LLM)
 		},
 	}
 
