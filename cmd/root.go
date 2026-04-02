@@ -26,8 +26,18 @@ var rootCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
+		llmTimeout := 20 * time.Second
+		if rawTimeout := os.Getenv("GEMINI_TIMEOUT"); rawTimeout != "" {
+			parsed, err := time.ParseDuration(rawTimeout)
+			if err != nil {
+				return fmt.Errorf("invalid GEMINI_TIMEOUT %q (examples: 10s, 1m, 0s): %w", rawTimeout, err)
+			}
+			llmTimeout = parsed
+		}
+
 		cfg := llm.Config{
 			GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
+			Timeout:      llmTimeout,
 		}
 
 		client, err := llm.NewGeminiClient(ctx, cfg)

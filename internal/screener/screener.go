@@ -2,6 +2,7 @@ package screener
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -111,6 +112,42 @@ func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) 
 	return newsItems
 }
 
+func normalizeVerdict(raw string) string {
+	const (
+		veryPositive = "VERY POSITIVE"
+		positive     = "POSITIVE"
+		neutral      = "NEUTRAL"
+		negative     = "NEGATIVE"
+		veryNegative = "VERY NEGATIVE"
+		undetermined = "UNDETERMINED"
+	)
+
+	if raw == "" {
+		return undetermined
+	}
+
+	// Normalize to make substring checks reliable.
+	normalized := strings.ToUpper(strings.Join(strings.Fields(raw), " "))
+
+	// Check more-specific phrases before less-specific ones.
+	switch {
+	case strings.Contains(normalized, veryPositive):
+		return veryPositive
+	case strings.Contains(normalized, veryNegative):
+		return veryNegative
+	case strings.Contains(normalized, neutral):
+		return neutral
+	case strings.Contains(normalized, positive):
+		return positive
+	case strings.Contains(normalized, negative):
+		return negative
+	case strings.Contains(normalized, undetermined):
+		return undetermined
+	default:
+		return undetermined
+	}
+}
+
 // FetchTickerNewsItem scrapes the news items for a given ticker from Finviz.
 func FetchTickerNewsItem(ticker string) []NewsItem {
 	url := "https://finviz.com/quote.ashx?t=" + ticker
@@ -163,11 +200,15 @@ func getVerdictFromGemini(ctx context.Context, text string, llmClient llm.Client
 	}
 
 	result, err := llmClient.Process(ctx, llm.Prompt{
-		Prompt:  "Determine if the news article is VERY POSITIVE, POSITIVE, NEUTRAL, NEGATIVE, VERY NEGATIVE or UNDETERMINED for the stock mentioned. Only respond with a single sentence.",
+		Prompt:  "Determine if the news article is VERY POSITIVE, POSITIVE, NEUTRAL, NEGATIVE, VERY NEGATIVE or UNDETERMINED for the stock mentioned. Only respond with a single verdict.",
 		Message: text,
 	})
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return "UNDETERMINED", nil
+		}
 		return "", err
 	}
-	return result, nil
+	return normalizeVerdict(result), nil
 }
+

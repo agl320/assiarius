@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -14,6 +15,9 @@ func ProcessText(ctx context.Context, text string, client Client) error {
 
 	out, err := client.Process(ctx, prompt)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil
+		}
 		return err
 	}
 
