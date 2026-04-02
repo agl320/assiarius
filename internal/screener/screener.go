@@ -46,12 +46,21 @@ func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient l
 func printTickers(df *dataframe.DataFrame) {
 	records := df.Records()
 	for index, record := range records {
+		if index == 0 {
+			// Header row from gota dataframe.
+			continue
+		}
 		if len(record) > 1 {
 			ticker := cleanTicker(record[1])
 			if ticker == "" {
 				continue
 			}
-			fmt.Println(index, ticker)
+			volume, err := scraper.GetTickerVolume(ticker)
+			if err == nil && volume != "" {
+				fmt.Printf("%d %s Volume: %s\n", index, ticker, volume)
+			} else {
+				fmt.Printf("%d %s\n", index, ticker)
+			}
 		}
 	}
 }
@@ -60,13 +69,15 @@ func extractNewsSlice(ctx context.Context, df *dataframe.DataFrame, llmClient ll
 	records := df.Records()
 
 	for index, record := range records {
-		if len(record) > 0 {
+		if index == 0 {
+			// Header row from gota dataframe.
+			continue
+		}
+		if len(record) > 1 {
 			ticker := cleanTicker(record[1])
 			if ticker == "" {
 				continue
 			}
-
-			fmt.Println(index, ticker)
 			GetNewsForTicker(ctx, ticker, llmClient)
 		}
 	}
@@ -83,29 +94,26 @@ func cleanTicker(s string) string {
 }
 
 func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) []NewsItem {
-	fmt.Println("News results:")
-
 	newsItems := FetchTickerNewsItem(ticker)
+	volume, _ := scraper.GetTickerVolume(ticker)
 
 	for i := 0; i < len(newsItems) && i < 1; i++ {
 		item := newsItems[i]
-		if strings.Contains(item.Time, "Today") {
-			fmt.Printf("%d: %s - %s\n", i, item.Headline, item.Link)
-		}
-
-		text, links := scraper.ExtractNewsFromLink(item.Link)
-		if text != "" {
-			fmt.Println(text)
-		}
-		if len(links) > 0 {
-			fmt.Printf("Found %d links in article\n", len(links))
-		}
+		text, _ := scraper.ExtractNewsFromLink(item.Link)
 
 		verdict, err := getVerdictFromGemini(ctx, text, llmClient)
 		if err != nil {
-			fmt.Println("Error getting verdict:", err)
+			if volume != "" {
+				fmt.Printf("%s Volume: %s Verdict: UNDETERMINED\n", ticker, volume)
+			} else {
+				fmt.Printf("%s Verdict: UNDETERMINED\n", ticker)
+			}
 		} else {
-			fmt.Printf("Verdict for article %d: %s\n", i, verdict)
+			if volume != "" {
+				fmt.Printf("%s Volume: %s Verdict: %s\n", ticker, volume, verdict)
+			} else {
+				fmt.Printf("%s Verdict: %s\n", ticker, verdict)
+			}
 		}
 	}
 
@@ -151,7 +159,6 @@ func normalizeVerdict(raw string) string {
 // FetchTickerNewsItem scrapes the news items for a given ticker from Finviz.
 func FetchTickerNewsItem(ticker string) []NewsItem {
 	url := "https://finviz.com/quote.ashx?t=" + ticker
-	fmt.Println(url)
 
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
@@ -159,13 +166,11 @@ func FetchTickerNewsItem(ticker string) []NewsItem {
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("error during page retrieval")
 		return []NewsItem{}
 	}
 	defer resp.Body.Close()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		fmt.Println("error during page reading")
 		return []NewsItem{}
 	}
 

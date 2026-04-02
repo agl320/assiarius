@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"assiarius/internal/read"
 
@@ -13,43 +14,59 @@ import (
 )
 
 // This file contains ad-hoc scrapers for specific Finviz pages, used by the screener command.
-func ReadTickerStatistics(ticker string) {
-	fmt.Printf("Fetching relative volume for ticker: %s\n", ticker)
+func FetchTickerStatistics(ticker string) (map[string]string, error) {
 	url := "https://finviz.com/quote.ashx?t=" + ticker
 
+	stats := map[string]string{}
+	var callbackErr error
+
 	c := colly.NewCollector()
+	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+	c.SetRequestTimeout(10 * time.Second)
 
 	c.OnHTML("table.snapshot-table2 tbody", func(bodyEl *colly.HTMLElement) {
 		bodyEl.ForEach("tr", func(_ int, rowEl *colly.HTMLElement) {
-
-			var label string
-			var value string
-
-			rowEl.ForEach("td", func(_ int, cellEl *colly.HTMLElement) {
-				classAttr := cellEl.Attr("class")
-
-				if strings.Contains(classAttr, "cursor-pointer") {
-					label = strings.TrimSpace(cellEl.Text)
-					return
+			cells := rowEl.DOM.Find("td")
+			for i := 0; i+1 < cells.Length(); i += 2 {
+				label := strings.TrimSpace(cells.Eq(i).Text())
+				value := strings.TrimSpace(cells.Eq(i + 1).Text())
+				if label == "" {
+					continue
 				}
-
-				spanText := strings.TrimSpace(cellEl.ChildText("b span"))
-				if spanText != "" {
-					value = spanText
-				}
-			})
-
-			if label != "" {
-				fmt.Printf("Key: %-20s Value: %s\n", label, value)
+				stats[label] = value
 			}
 		})
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Error has occured:", err)
+		callbackErr = err
 	})
 
-	c.Visit(url)
+	if err := c.Visit(url); err != nil {
+		return nil, err
+	}
+	if callbackErr != nil {
+		return nil, callbackErr
+	}
+	if len(stats) == 0 {
+		return nil, fmt.Errorf("no statistics found for ticker %s", ticker)
+	}
+
+	return stats, nil
+}
+
+func GetTickerVolume(ticker string) (string, error) {
+	stats, err := FetchTickerStatistics(ticker)
+	if err != nil {
+		return "", err
+	}
+	if v, ok := stats["Volume"]; ok && strings.TrimSpace(v) != "" {
+		return strings.TrimSpace(v), nil
+	}
+	if v, ok := stats["Avg Volume"]; ok && strings.TrimSpace(v) != "" {
+		return strings.TrimSpace(v), nil
+	}
+	return "", fmt.Errorf("volume not found for ticker %s", ticker)
 }
 
 func ToKey(s string) string {
@@ -66,12 +83,11 @@ func ToKey(s string) string {
 
 
 func ExtractNewsFromLink(link string) (string, []string) {
-	fmt.Println("Extracting news from link:", link)
 	url := strings.TrimSpace(link)
 	if url == "" {
 		return "", []string{}
 	}
-	if (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		return extractNewsFromExternalLink(url)
 	}
 	url = "https://finviz.com" + url
@@ -81,21 +97,18 @@ func ExtractNewsFromLink(link string) (string, []string) {
 func extractNewsFromExternalLink(url string) (string, []string) {
 	text, err := read.ReadNewsTextFromLink(url)
 	if err != nil {
-		fmt.Println("error extracting external article:", err)
 		return "", []string{}
 	}
 	return text, []string{}
 }
 
 func extractNewsFromFinvizLink(url string) (string, []string) {
-	fmt.Println("Extracting news from Finviz link:", url)
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("error during page retrieval")
 		return "", []string{}
 	}
 
@@ -103,7 +116,6 @@ func extractNewsFromFinvizLink(url string) (string, []string) {
 	
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		fmt.Println("error during page reading")
 		return "", []string{}
 	}
 
