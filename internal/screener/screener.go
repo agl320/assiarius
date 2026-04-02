@@ -22,6 +22,15 @@ type NewsItem struct {
 	Time     string
 }
 
+const (
+	VerdictVeryPositive = "VERY POSITIVE"
+	VerdictPositive     = "POSITIVE"
+	VerdictNeutral      = "NEUTRAL"
+	VerdictNegative     = "NEGATIVE"
+	VerdictVeryNegative = "VERY NEGATIVE"
+	VerdictUndetermined = "UNDETERMINED"
+)
+
 func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) error {
 	client := screener.New(nil)
 	df, err := client.GetScreenerResults(screen)
@@ -99,20 +108,37 @@ func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) 
 
 	for i := 0; i < len(newsItems) && i < 1; i++ {
 		item := newsItems[i]
+		timeStr := strings.TrimSpace(strings.Join(strings.Fields(item.Time), " "))
 		text, _ := scraper.ExtractNewsFromLink(item.Link)
 
 		verdict, err := getVerdictFromGemini(ctx, text, llmClient)
 		if err != nil {
 			if volume != "" {
-				fmt.Printf("%s Volume: %s Verdict: UNDETERMINED\n", ticker, volume)
+				if timeStr != "" {
+					fmt.Printf("%s Time: %s Volume: %s Verdict: %s\n", ticker, timeStr, volume, VerdictUndetermined)
+				} else {
+					fmt.Printf("%s Volume: %s Verdict: %s\n", ticker, volume, VerdictUndetermined)
+				}
 			} else {
-				fmt.Printf("%s Verdict: UNDETERMINED\n", ticker)
+				if timeStr != "" {
+					fmt.Printf("%s Time: %s Verdict: %s\n", ticker, timeStr, VerdictUndetermined)
+				} else {
+					fmt.Printf("%s Verdict: %s\n", ticker, VerdictUndetermined)
+				}
 			}
 		} else {
 			if volume != "" {
-				fmt.Printf("%s Volume: %s Verdict: %s\n", ticker, volume, verdict)
+				if timeStr != "" {
+					fmt.Printf("%s Time: %s Volume: %s Verdict: %s\n", ticker, timeStr, volume, verdict)
+				} else {
+					fmt.Printf("%s Volume: %s Verdict: %s\n", ticker, volume, verdict)
+				}
 			} else {
-				fmt.Printf("%s Verdict: %s\n", ticker, verdict)
+				if timeStr != "" {
+					fmt.Printf("%s Time: %s Verdict: %s\n", ticker, timeStr, verdict)
+				} else {
+					fmt.Printf("%s Verdict: %s\n", ticker, verdict)
+				}
 			}
 		}
 	}
@@ -121,17 +147,8 @@ func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) 
 }
 
 func normalizeVerdict(raw string) string {
-	const (
-		veryPositive = "VERY POSITIVE"
-		positive     = "POSITIVE"
-		neutral      = "NEUTRAL"
-		negative     = "NEGATIVE"
-		veryNegative = "VERY NEGATIVE"
-		undetermined = "UNDETERMINED"
-	)
-
 	if raw == "" {
-		return undetermined
+		return VerdictUndetermined
 	}
 
 	// Normalize to make substring checks reliable.
@@ -139,20 +156,20 @@ func normalizeVerdict(raw string) string {
 
 	// Check more-specific phrases before less-specific ones.
 	switch {
-	case strings.Contains(normalized, veryPositive):
-		return veryPositive
-	case strings.Contains(normalized, veryNegative):
-		return veryNegative
-	case strings.Contains(normalized, neutral):
-		return neutral
-	case strings.Contains(normalized, positive):
-		return positive
-	case strings.Contains(normalized, negative):
-		return negative
-	case strings.Contains(normalized, undetermined):
-		return undetermined
+	case strings.Contains(normalized, VerdictVeryPositive):
+		return VerdictVeryPositive
+	case strings.Contains(normalized, VerdictVeryNegative):
+		return VerdictVeryNegative
+	case strings.Contains(normalized, VerdictNeutral):
+		return VerdictNeutral
+	case strings.Contains(normalized, VerdictPositive):
+		return VerdictPositive
+	case strings.Contains(normalized, VerdictNegative):
+		return VerdictNegative
+	case strings.Contains(normalized, VerdictUndetermined):
+		return VerdictUndetermined
 	default:
-		return undetermined
+		return VerdictUndetermined
 	}
 }
 
@@ -210,7 +227,7 @@ func getVerdictFromGemini(ctx context.Context, text string, llmClient llm.Client
 	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return "UNDETERMINED", nil
+			return VerdictUndetermined, nil
 		}
 		return "", err
 	}
