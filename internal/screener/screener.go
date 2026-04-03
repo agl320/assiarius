@@ -4,21 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
-
-	"github.com/PuerkitoBio/goquery"
 
 	"assiarius/internal/llm"
 	"assiarius/internal/scraper"
 )
 
-type NewsItem struct {
-	Headline string
-	Link     string
-	Time     string
-}
+type NewsItem = scraper.NewsItem
 
 const (
 	VerdictVeryPositive = "VERY POSITIVE"
@@ -50,10 +43,7 @@ func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient l
 
 func printTickers(rows []ScreenRow) {
 	for i, row := range rows {
-		volume := strings.TrimSpace(row.VolumeText)
-		if volume == "" {
-			volume, _ = scraper.GetTickerValueAny(row.Ticker, "Volume", "Avg Volume")
-		}
+		volume, _ := scraper.GetTickerValueAny(row.Ticker, "Volume", "Avg Volume")
 		if volume != "" {
 			fmt.Printf("%d %s Volume: %s\n", i+1, row.Ticker, volume)
 		} else {
@@ -88,12 +78,24 @@ func GetNewsForTickerWithVolume(
 	volumeText string,
 	llmClient llm.Client,
 ) ([]NewsItem, string) {
-
-	newsItems := FetchTickerNewsItem(ticker)
-
 	volume := strings.TrimSpace(volumeText)
-	if volume == "" {
-		volume, _ = scraper.GetTickerValueAny(ticker, "Volume", "Avg Volume")
+
+	// If we need both news and volume, fetch the quote page once.
+	stats, newsItems, err := scraper.FetchTickerQuote(ticker)
+	if err != nil {
+		newsItems = scraper.FetchTickerNewsItem(ticker)
+		if volume == "" {
+			volume, _ = scraper.GetTickerValueAny(ticker, "Volume", "Avg Volume")
+		}
+	} else if volume == "" {
+		if v, ok := stats.Get("Volume"); ok && !v.Missing() {
+			volume = strings.TrimSpace(v.Raw)
+		}
+		if volume == "" {
+			if v, ok := stats.Get("Avg Volume"); ok && !v.Missing() {
+				volume = strings.TrimSpace(v.Raw)
+			}
+		}
 	}
 
 	if len(newsItems) == 0 {
@@ -152,48 +154,6 @@ func normalizeVerdict(raw string) string {
 	default:
 		return VerdictUndetermined
 	}
-}
-
-// FetchTickerNewsItem scrapes the news items for a given ticker from Finviz.
-func FetchTickerNewsItem(ticker string) []NewsItem {
-	url := "https://finviz.com/quote.ashx?t=" + ticker
-
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		return []NewsItem{}
-	}
-	defer resp.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return []NewsItem{}
-	}
-
-	var items []NewsItem
-
-	selection := doc.Find("table#news-table tr")
-	selection.Each(func(index int, s *goquery.Selection) {
-		linkTag := s.Find("a")
-		if linkTag.Length() == 0 {
-			return
-		}
-		headline := linkTag.Text()
-		href, _ := linkTag.Attr("href")
-		timeOrDate := s.Find("td").First().Text()
-
-		items = append(items, NewsItem{
-			Headline: headline,
-			Link:     href,
-			Time:     timeOrDate,
-		})
-
-	
-	})
-
-	return items
 }
 
 // getVerdictFromGemini sends the article text to Gemini and retrieves a sentiment verdict.

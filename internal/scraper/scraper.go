@@ -5,50 +5,20 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"assiarius/internal/read"
 	"assiarius/internal/tickerstats"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gocolly/colly/v2"
 )
 
 // This file contains ad-hoc scrapers for specific Finviz pages, used by the screener command.
 func FetchTickerStatistics(ticker string) (*tickerstats.Stats, error) {
-	url := "https://finviz.com/quote.ashx?t=" + ticker
-
-	stats := tickerstats.New(ticker)
-	var callbackErr error
-
-	c := colly.NewCollector()
-	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-	c.SetRequestTimeout(10 * time.Second)
-
-	c.OnHTML("table.snapshot-table2 tbody", func(bodyEl *colly.HTMLElement) {
-		bodyEl.ForEach("tr", func(_ int, rowEl *colly.HTMLElement) {
-			cells := rowEl.DOM.Find("td")
-			for i := 0; i+1 < cells.Length(); i += 2 {
-				label := strings.TrimSpace(cells.Eq(i).Text())
-				value := strings.TrimSpace(cells.Eq(i + 1).Text())
-				if label == "" {
-					continue
-				}
-				stats.Set(label, value)
-			}
-		})
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		callbackErr = err
-	})
-
-	if err := c.Visit(url); err != nil {
+	doc, err := fetchFinvizQuoteDocument(ticker)
+	if err != nil {
 		return nil, err
 	}
-	if callbackErr != nil {
-		return nil, callbackErr
-	}
+	stats := parseTickerStatisticsFromQuoteDocument(ticker, doc)
 	if stats.Len() == 0 {
 		return nil, fmt.Errorf("no statistics found for ticker %s", ticker)
 	}
