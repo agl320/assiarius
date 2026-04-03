@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/d3an/finviz/screener"
-	"github.com/go-gota/gota/dataframe"
 
 	"assiarius/internal/llm"
 	"assiarius/internal/scraper"
@@ -32,65 +30,42 @@ const (
 )
 
 func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) error {
-	client := screener.New(nil)
-	df, err := client.GetScreenerResults(screen)
+	rows, err := FetchScreenRows(screen)
 	if err != nil {
-		return fmt.Errorf("failed to fetch screener %q: %w", screen, err)
+		return err
 	}
-
-	if df == nil || df.Nrow() == 0 {
+	if len(rows) == 0 {
 		fmt.Printf("No results found for screener %q\n", screen)
 		return nil
 	}
 
 	if includeNews {
-		extractNewsSlice(ctx, df, llmClient)
+		extractNewsSlice(ctx, rows, llmClient)
 		return nil
 	}
 
-	printTickers(df)
+	printTickers(rows)
 	return nil
 }
 
-func printTickers(df *dataframe.DataFrame) {
-	records := df.Records()
-	for index, record := range records {
-		if index == 0 {
-			// Header row from gota dataframe.
-			continue
+func printTickers(rows []ScreenRow) {
+	for i, row := range rows {
+		volume := strings.TrimSpace(row.VolumeText)
+		if volume == "" {
+			volume, _ = scraper.GetTickerValueAny(row.Ticker, "Volume", "Avg Volume")
 		}
-		if len(record) > 1 {
-			ticker := cleanTicker(record[1])
-			if ticker == "" {
-				continue
-			}
-			volume, err := scraper.GetTickerVolume(ticker)
-			if err == nil && volume != "" {
-				fmt.Printf("%d %s Volume: %s\n", index, ticker, volume)
-			} else {
-				fmt.Printf("%d %s\n", index, ticker)
-			}
+		if volume != "" {
+			fmt.Printf("%d %s Volume: %s\n", i+1, row.Ticker, volume)
+		} else {
+			fmt.Printf("%d %s\n", i+1, row.Ticker)
 		}
 	}
 }
 
-func extractNewsSlice(ctx context.Context, df *dataframe.DataFrame, llmClient llm.Client) {
-	records := df.Records()
-
-	for index, record := range records {
-		if index == 0 {
-			// Header row from gota dataframe.
-			continue
-		}
-		if len(record) > 1 {
-			ticker := cleanTicker(record[1])
-			if ticker == "" {
-				continue
-			}
-			GetNewsForTicker(ctx, ticker, llmClient)
-		}
+func extractNewsSlice(ctx context.Context, rows []ScreenRow, llmClient llm.Client) {
+	for _, row := range rows {
+		GetNewsForTicker(ctx, row.Ticker, llmClient)
 	}
-	
 }
 
 func cleanTicker(s string) string {
@@ -107,49 +82,47 @@ func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) 
 	return newsItems
 }
 
-func GetNewsForTickerWithVolume(ctx context.Context, ticker string, volumeText string, llmClient llm.Client) ([]NewsItem, string) {
+func GetNewsForTickerWithVolume(
+	ctx context.Context,
+	ticker string,
+	volumeText string,
+	llmClient llm.Client,
+) ([]NewsItem, string) {
+
 	newsItems := FetchTickerNewsItem(ticker)
+
 	volume := strings.TrimSpace(volumeText)
 	if volume == "" {
-		volume, _ = scraper.GetTickerVolume(ticker)
+		volume, _ = scraper.GetTickerValueAny(ticker, "Volume", "Avg Volume")
 	}
 
-	for i := 0; i < len(newsItems) && i < 1; i++ {
-		item := newsItems[i]
-		timeStr := strings.TrimSpace(strings.Join(strings.Fields(item.Time), " "))
-		text, _ := scraper.ExtractNewsFromLink(item.Link)
-
-		verdict, err := getVerdictFromGemini(ctx, text, llmClient)
-		if err != nil {
-			if volume != "" {
-				if timeStr != "" {
-					fmt.Printf("%s Time: %s Volume: %s Verdict: %s\n", ticker, timeStr, volume, VerdictUndetermined)
-				} else {
-					fmt.Printf("%s Volume: %s Verdict: %s\n", ticker, volume, VerdictUndetermined)
-				}
-			} else {
-				if timeStr != "" {
-					fmt.Printf("%s Time: %s Verdict: %s\n", ticker, timeStr, VerdictUndetermined)
-				} else {
-					fmt.Printf("%s Verdict: %s\n", ticker, VerdictUndetermined)
-				}
-			}
-		} else {
-			if volume != "" {
-				if timeStr != "" {
-					fmt.Printf("%s Time: %s Volume: %s Verdict: %s\n", ticker, timeStr, volume, verdict)
-				} else {
-					fmt.Printf("%s Volume: %s Verdict: %s\n", ticker, volume, verdict)
-				}
-			} else {
-				if timeStr != "" {
-					fmt.Printf("%s Time: %s Verdict: %s\n", ticker, timeStr, verdict)
-				} else {
-					fmt.Printf("%s Verdict: %s\n", ticker, verdict)
-				}
-			}
-		}
+	if len(newsItems) == 0 {
+		return newsItems, volume
 	}
+
+	item := newsItems[0]
+
+	timeStr := strings.TrimSpace(strings.Join(strings.Fields(item.Time), " "))
+	text, _ := scraper.ExtractNewsFromLink(item.Link)
+
+	verdict, err := getVerdictFromGemini(ctx, text, llmClient)
+	if err != nil {
+		verdict = VerdictUndetermined
+	}
+
+	// Build output dynamically
+	parts := []string{ticker}
+
+	if timeStr != "" {
+		parts = append(parts, "Time:", timeStr)
+	}
+	if volume != "" {
+		parts = append(parts, "Volume:", volume)
+	}
+
+	parts = append(parts, "Verdict:", verdict)
+
+	fmt.Println(strings.Join(parts, " "))
 
 	return newsItems, volume
 }

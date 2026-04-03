@@ -2,22 +2,23 @@ package scraper
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
 	"assiarius/internal/read"
+	"assiarius/internal/tickerstats"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 )
 
 // This file contains ad-hoc scrapers for specific Finviz pages, used by the screener command.
-func FetchTickerStatistics(ticker string) (map[string]string, error) {
+func FetchTickerStatistics(ticker string) (*tickerstats.Stats, error) {
 	url := "https://finviz.com/quote.ashx?t=" + ticker
 
-	stats := map[string]string{}
+	stats := tickerstats.New(ticker)
 	var callbackErr error
 
 	c := colly.NewCollector()
@@ -33,7 +34,7 @@ func FetchTickerStatistics(ticker string) (map[string]string, error) {
 				if label == "" {
 					continue
 				}
-				stats[label] = value
+				stats.Set(label, value)
 			}
 		})
 	})
@@ -48,7 +49,7 @@ func FetchTickerStatistics(ticker string) (map[string]string, error) {
 	if callbackErr != nil {
 		return nil, callbackErr
 	}
-	if len(stats) == 0 {
+	if stats.Len() == 0 {
 		return nil, fmt.Errorf("no statistics found for ticker %s", ticker)
 	}
 
@@ -56,31 +57,57 @@ func FetchTickerStatistics(ticker string) (map[string]string, error) {
 }
 
 func GetTickerVolume(ticker string) (string, error) {
-	stats, err := FetchTickerStatistics(ticker)
-	if err != nil {
+	return GetTickerValueAny(ticker, "Volume", "Avg Volume")
+}
+
+// GetTickerValue fetches a single Finviz snapshot statistic by its label/key.
+//
+// Examples of keys: "Volume", "Avg Volume", "Market Cap", "P/E".
+// It logs and returns an error if the key is missing or the value is "-".
+func GetTickerValue(ticker string, key string) (string, error) {
+	return GetTickerValueAny(ticker, key)
+}
+
+// GetTickerValueAny tries multiple keys in order and returns the first
+// non-missing value. It logs and returns an error if none are found.
+func GetTickerValueAny(ticker string, keys ...string) (string, error) {
+	ticker = strings.TrimSpace(strings.ToUpper(ticker))
+	if ticker == "" {
+		err := fmt.Errorf("ticker is empty")
+		log.Printf("scraper: %v", err)
 		return "", err
 	}
-	if v, ok := stats["Volume"]; ok && strings.TrimSpace(v) != "" {
-		return strings.TrimSpace(v), nil
+	if len(keys) == 0 {
+		err := fmt.Errorf("no keys provided for ticker %s", ticker)
+		log.Printf("scraper: %v", err)
+		return "", err
 	}
-	if v, ok := stats["Avg Volume"]; ok && strings.TrimSpace(v) != "" {
-		return strings.TrimSpace(v), nil
+
+	stats, err := FetchTickerStatistics(ticker)
+	if err != nil {
+		log.Printf("scraper: FetchTickerStatistics(%s) failed: %v", ticker, err)
+		return "", err
 	}
-	return "", fmt.Errorf("volume not found for ticker %s", ticker)
+
+	cleanKeys := make([]string, 0, len(keys))
+	for _, k := range keys {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		cleanKeys = append(cleanKeys, k)
+		if v, ok := stats.Get(k); ok && !v.Missing() {
+			out := strings.TrimSpace(v.Raw)
+			if out != "" {
+				return out, nil
+			}
+		}
+	}
+
+	err = fmt.Errorf("no value found for ticker %s (keys: %s)", ticker, strings.Join(cleanKeys, ", "))
+	log.Printf("scraper: %v", err)
+	return "", err
 }
-
-func ToKey(s string) string {
-	s = strings.TrimSpace(s)
-	s = strings.ToLower(s)
-
-	re := regexp.MustCompile(`[^a-z0-9]+`)
-	s = re.ReplaceAllString(s, "_")
-
-	s = strings.Trim(s, "_")
-
-	return s
-}
-
 
 func ExtractNewsFromLink(link string) (string, []string) {
 	url := strings.TrimSpace(link)
