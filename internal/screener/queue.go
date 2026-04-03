@@ -64,6 +64,7 @@ func (q *LLMQueue) Enqueue(ticker string, volumeText string) {
 	now := time.Now()
 
 	// Mutex lock to safely access the queue state (for multiple goroutines)
+	// one from poller and one from queue
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
