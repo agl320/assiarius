@@ -103,8 +103,16 @@ func cleanTicker(s string) string {
 }
 
 func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) []NewsItem {
+	newsItems, _ := GetNewsForTickerWithVolume(ctx, ticker, "", llmClient)
+	return newsItems
+}
+
+func GetNewsForTickerWithVolume(ctx context.Context, ticker string, volumeText string, llmClient llm.Client) ([]NewsItem, string) {
 	newsItems := FetchTickerNewsItem(ticker)
-	volume, _ := scraper.GetTickerVolume(ticker)
+	volume := strings.TrimSpace(volumeText)
+	if volume == "" {
+		volume, _ = scraper.GetTickerVolume(ticker)
+	}
 
 	for i := 0; i < len(newsItems) && i < 1; i++ {
 		item := newsItems[i]
@@ -143,7 +151,7 @@ func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) 
 		}
 	}
 
-	return newsItems
+	return newsItems, volume
 }
 
 func normalizeVerdict(raw string) string {
