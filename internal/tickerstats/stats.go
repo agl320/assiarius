@@ -67,6 +67,21 @@ func (s *Stats) Raw(labelOrKey string) (string, bool) {
 	return v.Raw, true
 }
 
+// Text returns a cleaned, non-missing raw value for a label/key.
+//
+// It returns ("", false) if the stat is not present, missing ("-"), or empty.
+func (s *Stats) Text(labelOrKey string) (string, bool) {
+	v, ok := s.Get(labelOrKey)
+	if !ok || v.Missing() {
+		return "", false
+	}
+	out := strings.TrimSpace(v.Raw)
+	if out == "" {
+		return "", false
+	}
+	return out, true
+}
+
 // ToKey normalizes a label to a stable identifier.
 // Examples: "P/E" -> "p_e", "52W High" -> "52w_high".
 func ToKey(in string) string {

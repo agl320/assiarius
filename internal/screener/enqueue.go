@@ -22,7 +22,12 @@ func EnqueueScreenTickers(ctx context.Context, screen string, q *LLMQueue) error
 		return err
 	}
 	for _, row := range rows {
-		volumeText, _ := scraper.GetTickerValueAny(row.Ticker, "Volume", "Avg Volume")
+		volumeText := ""
+		if stats, err := scraper.FetchTickerStatistics(row.Ticker); err == nil {
+			if v, ok := stats.Text("Volume"); ok {
+				volumeText = v
+			}
+		}
 		q.Enqueue(row.Ticker, volumeText)
 	}
 

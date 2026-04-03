@@ -43,7 +43,12 @@ func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient l
 
 func printTickers(rows []ScreenRow) {
 	for i, row := range rows {
-		volume, _ := scraper.GetTickerValueAny(row.Ticker, "Volume", "Avg Volume")
+		volume := ""
+		if stats, err := scraper.FetchTickerStatistics(row.Ticker); err == nil {
+			if v, ok := stats.Text("Volume"); ok {
+				volume = v
+			}
+		}
 		if volume != "" {
 			fmt.Printf("%d %s Volume: %s\n", i+1, row.Ticker, volume)
 		} else {
@@ -84,17 +89,9 @@ func GetNewsForTickerWithVolume(
 	stats, newsItems, err := scraper.FetchTickerQuote(ticker)
 	if err != nil {
 		newsItems = scraper.FetchTickerNewsItem(ticker)
-		if volume == "" {
-			volume, _ = scraper.GetTickerValueAny(ticker, "Volume", "Avg Volume")
-		}
 	} else if volume == "" {
-		if v, ok := stats.Get("Volume"); ok && !v.Missing() {
-			volume = strings.TrimSpace(v.Raw)
-		}
-		if volume == "" {
-			if v, ok := stats.Get("Avg Volume"); ok && !v.Missing() {
-				volume = strings.TrimSpace(v.Raw)
-			}
+		if v, ok := stats.Text("Volume"); ok {
+			volume = v
 		}
 	}
 

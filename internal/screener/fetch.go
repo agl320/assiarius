@@ -28,6 +28,8 @@ func FetchScreenRows(screen string) ([]ScreenRow, error) {
 
 	const tickerIndex = 1
 
+	// Reserve capacity for rows, excluding header
+	// Just for optimizations :[
 	rows := make([]ScreenRow, 0, len(records))
 	for i, record := range records {
 		if i == 0 {
