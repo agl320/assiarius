@@ -1,6 +1,6 @@
 # assiarius
 
-Small CLI for polling Finviz screeners and running a sentiment verdict on the latest news item per ticker. Works by aggregating tickers using finviz screener url, sorting them via priority queue based on various (to be configurable) signals, and then feeding them into Gemini 3 Flash.
+Small CLI for polling Finviz screeners and running a sentiment verdict on the latest news item per ticker. Works by aggregating tickers using finviz screener url, sorting them via priority queue based on various (to be configurable) signals, and then feeding them through a rate limited request pipeline into Gemini 3 Flash.
 
 ## Setup
 
