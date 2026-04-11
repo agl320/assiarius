@@ -13,6 +13,13 @@ import (
 
 type NewsItem = scraper.NewsItem
 
+type ScreenResult struct {
+	Ticker  string
+	News    []NewsItem
+	Volume  string
+	Verdict string
+}
+
 const (
 	VerdictVeryPositive = "VERY POSITIVE"
 	VerdictPositive     = "POSITIVE"
@@ -22,23 +29,23 @@ const (
 	VerdictUndetermined = "UNDETERMINED"
 )
 
-func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) error {
+func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) ScreenResult {
 	rows, err := FetchScreenRows(screen)
 	if err != nil {
-		return err
+		return ScreenResult{}
 	}
 	if len(rows) == 0 {
 		fmt.Printf("No results found for screener %q\n", screen)
-		return nil
+		return ScreenResult{}
 	}
 
 	if includeNews {
 		extractNewsSlice(ctx, rows, llmClient)
-		return nil
+		return ScreenResult{}
 	}
 
 	printTickers(rows)
-	return nil
+	return ScreenResult{}
 }
 
 func printTickers(rows []ScreenRow) {
