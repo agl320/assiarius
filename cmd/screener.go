@@ -29,8 +29,7 @@ func fetchTickerNewsCommand() *cobra.Command {
 		Short: "Fetch news for a ticker",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			screener.GetNewsForTicker(cmd.Context(), args[0], app.LLM)
-			return nil
+			return screener.GetNewsForTicker(cmd.Context(), args[0], app.LLM)
 		},
 	}
 

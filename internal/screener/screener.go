@@ -13,11 +13,19 @@ import (
 
 type NewsItem = scraper.NewsItem
 
+// TickerSignals are optional hints that may already be known when a ticker is
+// enqueued (e.g. from a screener row). Keeping this as a struct makes it easy
+// to add additional scoring/prioritization signals later.
+type TickerSignals struct {
+	VolumeText  string
+	VolumeValue float64
+}
+
 type ScreenResult struct {
 	Ticker  string
-	News    []NewsItem
 	Volume  string
 	Verdict string
+	Latest  NewsItem
 }
 
 const (
@@ -29,23 +37,29 @@ const (
 	VerdictUndetermined = "UNDETERMINED"
 )
 
-func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) ScreenResult {
+func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) error {
 	rows, err := FetchScreenRows(screen)
 	if err != nil {
-		return ScreenResult{}
+		return err
 	}
 	if len(rows) == 0 {
 		fmt.Printf("No results found for screener %q\n", screen)
-		return ScreenResult{}
+		return nil
 	}
 
 	if includeNews {
-		extractNewsSlice(ctx, rows, llmClient)
-		return ScreenResult{}
+		for _, row := range rows {
+			res, err := AnalyzeLatestNews(ctx, row.Ticker, TickerSignals{}, llmClient)
+			if err != nil {
+				continue
+			}
+			fmt.Println(FormatScreenResult(res))
+		}
+		return nil
 	}
 
 	printTickers(rows)
-	return ScreenResult{}
+	return nil
 }
 
 func printTickers(rows []ScreenRow) {
@@ -64,12 +78,6 @@ func printTickers(rows []ScreenRow) {
 	}
 }
 
-func extractNewsSlice(ctx context.Context, rows []ScreenRow, llmClient llm.Client) {
-	for _, row := range rows {
-		GetNewsForTicker(ctx, row.Ticker, llmClient)
-	}
-}
-
 func cleanTicker(s string) string {
 	s = strings.ToUpper(s)
 
@@ -79,18 +87,26 @@ func cleanTicker(s string) string {
 	return s
 }
 
-func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) []NewsItem {
-	newsItems, _ := GetNewsForTickerWithVolume(ctx, ticker, "", llmClient)
-	return newsItems
+// GetNewsForTicker analyzes the latest news item for the ticker and prints the
+// formatted result.
+func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) error {
+	res, err := AnalyzeLatestNews(ctx, ticker, TickerSignals{}, llmClient)
+	if err != nil {
+		return err
+	}
+	fmt.Println(FormatScreenResult(res))
+	return nil
 }
 
-func GetNewsForTickerWithVolume(
+// AnalyzeLatestNews fetches the latest news item for a ticker, extracts its text,
+// and gets an LLM sentiment verdict.
+func AnalyzeLatestNews(
 	ctx context.Context,
 	ticker string,
-	volumeText string,
+	signals TickerSignals,
 	llmClient llm.Client,
-) ([]NewsItem, string) {
-	volume := strings.TrimSpace(volumeText)
+) (ScreenResult, error) {
+	volume := strings.TrimSpace(signals.VolumeText)
 
 	// If we need both news and volume, fetch the quote page once.
 	stats, newsItems, err := scraper.FetchTickerQuote(ticker)
@@ -103,7 +119,7 @@ func GetNewsForTickerWithVolume(
 	}
 
 	if len(newsItems) == 0 {
-		return newsItems, volume
+		return ScreenResult{Ticker: ticker, Volume: volume, Verdict: VerdictUndetermined}, nil
 	}
 
 	item := newsItems[0]
@@ -116,21 +132,29 @@ func GetNewsForTickerWithVolume(
 		verdict = VerdictUndetermined
 	}
 
-	// Build output dynamically
-	parts := []string{ticker}
+	_ = timeStr // preserved for formatting via NewsItem fields
+	return ScreenResult{
+		Ticker:  ticker,
+		Volume:  volume,
+		Verdict: verdict,
+		Latest:  item,
+	}, nil
+}
 
-	if timeStr != "" {
-		parts = append(parts, "Time:", timeStr)
+func FormatScreenResult(res ScreenResult) string {
+	parts := []string{strings.TrimSpace(strings.ToUpper(res.Ticker))}
+
+	if t := strings.TrimSpace(strings.Join(strings.Fields(res.Latest.Time), " ")); t != "" {
+		parts = append(parts, "Time:", t)
 	}
-	if volume != "" {
-		parts = append(parts, "Volume:", volume)
+	if v := strings.TrimSpace(res.Volume); v != "" {
+		parts = append(parts, "Volume:", v)
+	}
+	if verdict := strings.TrimSpace(res.Verdict); verdict != "" {
+		parts = append(parts, "Verdict:", verdict)
 	}
 
-	parts = append(parts, "Verdict:", verdict)
-
-	fmt.Println(strings.Join(parts, " "))
-
-	return newsItems, volume
+	return strings.Join(parts, " ")
 }
 
 func normalizeVerdict(raw string) string {

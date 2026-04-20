@@ -28,7 +28,10 @@ func EnqueueScreenTickers(ctx context.Context, screen string, q *LLMQueue) error
 				volumeText = v
 			}
 		}
-		q.Enqueue(row.Ticker, volumeText)
+		q.Enqueue(row.Ticker, TickerSignals{
+			VolumeText:  volumeText,
+			VolumeValue: parseVolumeNumber(volumeText),
+		})
 	}
 
 	return nil

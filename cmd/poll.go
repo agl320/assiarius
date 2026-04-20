@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"assiarius/internal/poll"
+	"assiarius/internal/screener"
+	"assiarius/internal/webhook"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -38,7 +41,27 @@ func pollCommand() *cobra.Command {
 				}
 			}
 
-			return poll.StartPoller(ctx, args[0], interval, app.LLM)
+			results, err := poll.StartPoller(ctx, args[0], interval, app.LLM)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Poll started...")
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case res, ok := <-results:
+					if !ok {
+						return nil
+					}
+					msg := screener.FormatScreenResult(res)
+					fmt.Println(msg)
+					if err := webhook.NotifyDiscord(ctx, msg); err != nil {
+						fmt.Fprintln(os.Stderr, err)
+					}
+				}
+			}
 		},
 	}
 

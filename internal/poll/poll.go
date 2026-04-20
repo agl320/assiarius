@@ -4,38 +4,34 @@ import (
 	"assiarius/internal/llm"
 	"assiarius/internal/screener"
 	"context"
-	"fmt"
 	"time"
 )
 
-type ScreenerResult struct {
-	Ticker string
-	Price  float64
-}
-
-func StartPoller(ctx context.Context, screen string, interval time.Duration, llmClient llm.Client) error {
+// StartPoller starts a screener poller and returns a channel of per-ticker results.
+//
+// The poller stops when ctx is cancelled.
+func StartPoller(ctx context.Context, screen string, interval time.Duration, llmClient llm.Client) (<-chan screener.ScreenResult, error) {
 	queue := screener.NewLLMQueue(llmClient, screener.GetQueueMinInterval())
 	go queue.Start(ctx)
 
 	// Enqueue once immediately so the first run doesn't wait a full interval.
 	if err := screener.EnqueueScreenTickers(ctx, screen, queue); err != nil {
-		return err
+		return nil, err
 	}
 
 	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	fmt.Println("Poll started...")
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			err := screener.EnqueueScreenTickers(ctx, screen, queue)
-			if err != nil {
-				return err
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_ = screener.EnqueueScreenTickers(ctx, screen, queue)
 			}
 		}
-	}
+	}()
+
+	return queue.Results(), nil
 }
 

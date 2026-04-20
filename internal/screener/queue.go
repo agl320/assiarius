@@ -14,8 +14,7 @@ import (
 
 type queuedTicker struct {
 	ticker      string
-	volumeText  string
-	volumeValue float64
+	signals     TickerSignals
 	firstSeen   time.Time
 	lastSeen    time.Time
 }
@@ -35,6 +34,9 @@ type LLMQueue struct {
 	tasks  map[string]*queuedTicker
 	client llm.Client
 
+	resultsCh chan ScreenResult
+	closeOnce sync.Once
+
 	minInterval time.Duration
 	decayHalf   time.Duration
 	lastCallAt  time.Time
@@ -45,22 +47,34 @@ func NewLLMQueue(client llm.Client, minInterval time.Duration) *LLMQueue {
 		tasks:       map[string]*queuedTicker{},
 		client:      client,
 		wakeCh:      make(chan struct{}, 1),
+		resultsCh:   make(chan ScreenResult, 128),
 		minInterval: minInterval,
 		decayHalf:   90 * time.Second,
 	}
 	return q
 }
 
+// Results returns a receive-only channel of completed ticker analyses.
+func (q *LLMQueue) Results() <-chan ScreenResult {
+	if q == nil {
+		return nil
+	}
+	return q.resultsCh
+}
+
 // Enqueue adds a ticker if it is not already pending; if it is, it updates its
-// last-seen time and keeps the highest known volume.
-func (q *LLMQueue) Enqueue(ticker string, volumeText string) {
+// last-seen time and keeps the strongest known signals.
+func (q *LLMQueue) Enqueue(ticker string, signals TickerSignals) {
 	// Ticker clean-up (if needed)
 	ticker = strings.TrimSpace(strings.ToUpper(ticker))
 	if ticker == "" {
 		return
 	}
 
-	volumeValue := parseVolumeNumber(volumeText)
+	if signals.VolumeValue <= 0 && strings.TrimSpace(signals.VolumeText) != "" {
+		signals.VolumeValue = parseVolumeNumber(signals.VolumeText)
+	}
+	signals.VolumeText = strings.TrimSpace(signals.VolumeText)
 	now := time.Now()
 
 	// Mutex lock to safely access the queue state (for multiple goroutines)
@@ -70,9 +84,8 @@ func (q *LLMQueue) Enqueue(ticker string, volumeText string) {
 
 	if existing, ok := q.tasks[ticker]; ok {
 		existing.lastSeen = now
-		if volumeValue > existing.volumeValue {
-			existing.volumeValue = volumeValue
-			existing.volumeText = volumeText
+		if signals.VolumeValue > existing.signals.VolumeValue {
+			existing.signals = signals
 		}
 		q.signal()
 		return
@@ -80,8 +93,7 @@ func (q *LLMQueue) Enqueue(ticker string, volumeText string) {
 
 	q.tasks[ticker] = &queuedTicker{
 		ticker:      ticker,
-		volumeText:  volumeText,
-		volumeValue: volumeValue,
+		signals:     signals,
 		firstSeen:   now,
 		lastSeen:    now,
 	}
@@ -97,6 +109,10 @@ func (q *LLMQueue) signal() {
 }
 
 func (q *LLMQueue) Start(ctx context.Context) {
+	defer q.closeOnce.Do(func() {
+		close(q.resultsCh)
+	})
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -104,7 +120,7 @@ func (q *LLMQueue) Start(ctx context.Context) {
 		default:
 		}
 
-		ticker, volumeText, ok := q.dequeueNext(ctx)
+		ticker, signals, ok := q.dequeueNext(ctx)
 		if !ok {
 			return
 		}
@@ -114,7 +130,14 @@ func (q *LLMQueue) Start(ctx context.Context) {
 		}
 
 		// Consume the task outside of the lock.
-		_, _ = GetNewsForTickerWithVolume(ctx, ticker, volumeText, q.client)
+		res, err := AnalyzeLatestNews(ctx, ticker, signals, q.client)
+		if err == nil {
+			select {
+			case q.resultsCh <- res:
+			default:
+				// best-effort: avoid blocking the queue if the consumer is slow
+			}
+		}
 		q.mu.Lock()
 		q.lastCallAt = time.Now()
 		q.mu.Unlock()
@@ -146,7 +169,7 @@ func (q *LLMQueue) rateLimit(ctx context.Context) bool {
 	}
 }
 
-func (q *LLMQueue) dequeueNext(ctx context.Context) (ticker string, volumeText string, ok bool) {
+func (q *LLMQueue) dequeueNext(ctx context.Context) (ticker string, signals TickerSignals, ok bool) {
 	for {
 		q.mu.Lock()
 		if len(q.tasks) > 0 {
@@ -156,7 +179,7 @@ func (q *LLMQueue) dequeueNext(ctx context.Context) (ticker string, volumeText s
 
 		select {
 		case <-ctx.Done():
-			return "", "", false
+			return "", TickerSignals{}, false
 		case <-q.wakeCh:
 			// try again
 		}
@@ -176,19 +199,19 @@ func (q *LLMQueue) dequeueNext(ctx context.Context) (ticker string, volumeText s
 
 	if best == nil {
 		q.mu.Unlock()
-		return "", "", false
+		return "", TickerSignals{}, false
 	}
 
 	delete(q.tasks, best.ticker)
 	q.mu.Unlock()
-	return best.ticker, best.volumeText, true
+	return best.ticker, best.signals, true
 }
 
 func (q *LLMQueue) score(now time.Time, t *queuedTicker) float64 {
 	// Volume score: stable ordering by size (log scaled).
 	vol := 0.0
-	if t.volumeValue > 0 {
-		vol = math.Log1p(t.volumeValue)
+	if t.signals.VolumeValue > 0 {
+		vol = math.Log1p(t.signals.VolumeValue)
 	}
 
 	// Recency bonus: decays toward 0 as time since lastSeen grows.
