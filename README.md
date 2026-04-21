@@ -1,6 +1,6 @@
 # assiarius
 
-Small CLI for polling Finviz screeners and running a sentiment verdict on the latest news item per ticker. Works by aggregating tickers using finviz screener url, sorting them via priority queue based on various (to be configurable) signals, and then feeding them through a rate limited request pipeline into Gemini 3 Flash.
+Small CLI for polling Finviz screeners and hooking them up to Discord via webhook. Optionally send ticker statistics to LLM (Gemini Flash 3 in this case) for sentiment identification.
 
 ## Setup
 
@@ -19,7 +19,6 @@ Optional:
   - `assi poll [screenerURL]`
 
 - Poll a news screener URL with a custom interval (window matches interval):
-  - `assi poll [screenerURL] 300`
   - `assi poll [screenerURL] 5m`
   - `assi poll [screenerURL] 1h`
 
