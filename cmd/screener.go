@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"assiarius/internal/screener"
@@ -17,10 +18,12 @@ func screenerCommand() *cobra.Command {
 		Short: "Run a single Finviz screener preset",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			log.Printf("screen: starting preset=%s includeNews=%v", args[0], includeNews)
 			run, err := screener.RunScreen(cmd.Context(), args[0], includeNews, app.LLM)
 			if err != nil {
 				return err
 			}
+			log.Printf("screen: tickers=%d results=%d", len(run.Tickers), len(run.Results))
 			if len(run.Tickers) == 0 {
 				fmt.Printf("No results found for screener %q\n", args[0])
 				return nil

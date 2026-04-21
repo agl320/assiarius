@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -13,15 +14,18 @@ import (
 
 type discordPayload struct {
 	Content string `json:"content"`
+	Username string `json:"username,omitempty"`
+	ProfilePicture string `json:"avatar_url,omitempty"`
 }
 
 func NotifyDiscord(ctx context.Context, content string) error {
 	url := strings.TrimSpace(os.Getenv("WEBHOOK_DISCORD_URL"))
 	if url == "" {
+		log.Printf("webhook: WEBHOOK_DISCORD_URL not set; skipping")
 		return nil
 	}
 
-	body, err := json.Marshal(discordPayload{Content: content})
+	body, err := json.Marshal(discordPayload{Content: content, Username: os.Getenv("WEBHOOK_DISCORD_USERNAME"), ProfilePicture: os.Getenv("WEBHOOK_DISCORD_AVATAR_URL")})
 	if err != nil {
 		return err
 	}
@@ -42,5 +46,6 @@ func NotifyDiscord(ctx context.Context, content string) error {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("discord webhook returned %s", resp.Status)
 	}
+	log.Printf("webhook: delivered status=%s", resp.Status)
 	return nil
 }

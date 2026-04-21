@@ -4,6 +4,7 @@ import (
 	"assiarius/internal/llm"
 	"assiarius/internal/screener"
 	"context"
+	"log"
 	"time"
 )
 
@@ -33,7 +34,10 @@ func StartPoller(ctx context.Context, screen string, interval time.Duration, llm
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_ = screener.EnqueueScreenNews(ctx, screen, interval, queue)
+				log.Printf("poll: enqueue tick window=%s", interval)
+				if err := screener.EnqueueScreenNews(ctx, screen, interval, queue); err != nil {
+					log.Printf("poll: enqueue error: %v", err)
+				}
 			}
 		}
 	}()

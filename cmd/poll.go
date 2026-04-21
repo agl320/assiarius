@@ -5,6 +5,7 @@ import (
 	"assiarius/internal/screener"
 	"assiarius/internal/webhook"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -32,10 +33,12 @@ func pollCommand() *cobra.Command {
 				interval = parsed
 			}
 
-			// Ensure news url (and other validation)
+			// Validate screener URL (news window will be injected/overwritten by poller).
 			if _, err := screener.ValidateFinvizScreenerURL(args[0]); err != nil {
 				return err
 			}
+
+			log.Printf("poll: starting window=%s url=%s", interval, args[0])
 
 			// Start poller
 			results, err := poll.StartPoller(ctx, args[0], interval, app.LLM)
@@ -56,8 +59,10 @@ func pollCommand() *cobra.Command {
 					}
 					msg := screener.FormatScreenResult(res)
 					fmt.Println(msg)
+					log.Printf("poll: result ticker=%s link=%s", strings.TrimSpace(res.Ticker), strings.TrimSpace(res.Latest.Link))
 					if err := webhook.NotifyDiscord(ctx, msg); err != nil {
 						fmt.Fprintln(os.Stderr, err)
+						log.Printf("poll: webhook error: %v", err)
 					}
 				}
 			}
