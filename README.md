@@ -15,13 +15,13 @@ Optional:
 
 ## Usage
 
-- Poll a screener every 15 seconds (default):
-  - `assi poll [screener]`
+- Poll a _news_ screener URL every 5 minutes (default):
+  - `assi poll [screenerURL]`
 
-- Poll a screener with a custom interval:
-  - `assi poll [screener] 30`
-  - `assi poll [screener] 30s`
-  - `assi poll [screener] 1m`
+- Poll a news screener URL with a custom interval (window matches interval):
+  - `assi poll [screenerURL] 300`
+  - `assi poll [screenerURL] 5m`
+  - `assi poll [screenerURL] 1h`
 
 - Run a screener once:
   - `assi screen [preset]`

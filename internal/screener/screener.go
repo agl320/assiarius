@@ -14,8 +14,7 @@ import (
 type NewsItem = scraper.NewsItem
 
 // TickerSignals are optional hints that may already be known when a ticker is
-// enqueued (e.g. from a screener row). Keeping this as a struct makes it easy
-// to add additional scoring/prioritization signals later.
+// enqueued (e.g. from a screener row). 
 type TickerSignals struct {
 	VolumeText  string
 	VolumeValue float64
@@ -28,6 +27,17 @@ type ScreenResult struct {
 	Latest  NewsItem
 }
 
+type ScreenTicker struct {
+	Ticker string
+	Volume string
+}
+
+type ScreenRun struct {
+	Screen  string
+	Tickers []ScreenTicker
+	Results []ScreenResult
+}
+
 const (
 	VerdictVeryPositive = "VERY POSITIVE"
 	VerdictPositive     = "POSITIVE"
@@ -37,44 +47,48 @@ const (
 	VerdictUndetermined = "UNDETERMINED"
 )
 
-func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) error {
+func RunScreen(ctx context.Context, screen string, includeNews bool, llmClient llm.Client) (ScreenRun, error) {
 	rows, err := FetchScreenRows(screen)
 	if err != nil {
-		return err
+		return ScreenRun{}, err
 	}
+
+	run := ScreenRun{Screen: screen}
 	if len(rows) == 0 {
-		fmt.Printf("No results found for screener %q\n", screen)
-		return nil
+		return run, nil
 	}
 
-	if includeNews {
-		for _, row := range rows {
-			res, err := AnalyzeLatestNews(ctx, row.Ticker, TickerSignals{}, llmClient)
-			if err != nil {
-				continue
-			}
-			fmt.Println(FormatScreenResult(res))
+	run.Tickers = make([]ScreenTicker, 0, len(rows))
+	for _, row := range rows {
+		run.Tickers = append(run.Tickers, ScreenTicker{Ticker: row.Ticker})
+	}
+
+	if !includeNews {
+		populateTickerVolumes(run.Tickers)
+		return run, nil
+	}
+
+	run.Results = make([]ScreenResult, 0, len(rows))
+	for _, row := range rows {
+		res, err := AnalyzeLatestNews(ctx, row.Ticker, TickerSignals{}, llmClient)
+		if err != nil {
+			continue
 		}
-		return nil
+		run.Results = append(run.Results, res)
 	}
 
-	printTickers(rows)
-	return nil
+	return run, nil
 }
 
-func printTickers(rows []ScreenRow) {
-	for i, row := range rows {
+func populateTickerVolumes(tickers []ScreenTicker) {
+	for i := range tickers {
 		volume := ""
-		if stats, err := scraper.FetchTickerStatistics(row.Ticker); err == nil {
+		if stats, err := scraper.FetchTickerStatistics(tickers[i].Ticker); err == nil {
 			if v, ok := stats.Text("Volume"); ok {
 				volume = v
 			}
 		}
-		if volume != "" {
-			fmt.Printf("%d %s Volume: %s\n", i+1, row.Ticker, volume)
-		} else {
-			fmt.Printf("%d %s\n", i+1, row.Ticker)
-		}
+		tickers[i].Volume = volume
 	}
 }
 
@@ -87,15 +101,9 @@ func cleanTicker(s string) string {
 	return s
 }
 
-// GetNewsForTicker analyzes the latest news item for the ticker and prints the
-// formatted result.
-func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) error {
-	res, err := AnalyzeLatestNews(ctx, ticker, TickerSignals{}, llmClient)
-	if err != nil {
-		return err
-	}
-	fmt.Println(FormatScreenResult(res))
-	return nil
+// GetNewsForTicker analyzes the latest news item for the ticker.
+func GetNewsForTicker(ctx context.Context, ticker string, llmClient llm.Client) (ScreenResult, error) {
+	return AnalyzeLatestNews(ctx, ticker, TickerSignals{}, llmClient)
 }
 
 // AnalyzeLatestNews fetches the latest news item for a ticker, extracts its text,

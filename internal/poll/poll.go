@@ -15,10 +15,12 @@ func StartPoller(ctx context.Context, screen string, interval time.Duration, llm
 		return nil, err
 	}
 
+	// Start news queue and screen news enqueuer
+	// Queue will handle scheduling subsequent screen news enqueues at the specified interval (env)
 	queue := screener.NewNewsQueue(llmClient, screener.GetQueueMinInterval())
 	go queue.Start(ctx)
 
-	// Enqueue once immediately so the first run doesn't wait a full interval.
+	// Enqueue once immediately so the first run doesn't wait a full interval
 	if err := screener.EnqueueScreenNews(ctx, screen, interval, queue); err != nil {
 		return nil, err
 	}

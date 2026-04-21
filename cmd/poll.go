@@ -22,6 +22,8 @@ func pollCommand() *cobra.Command {
 
 			// Default
 			interval := 5 * time.Minute
+
+			// Ensure poll window can be mapped to finviz screener
 			if len(args) == 2 {
 				parsed, err := parsePollWindow(args[1])
 				if err != nil {
@@ -30,10 +32,12 @@ func pollCommand() *cobra.Command {
 				interval = parsed
 			}
 
+			// Ensure news url (and other validation)
 			if _, err := screener.ValidateFinvizScreenerURL(args[0]); err != nil {
 				return err
 			}
 
+			// Start poller
 			results, err := poll.StartPoller(ctx, args[0], interval, app.LLM)
 			if err != nil {
 				return err
@@ -42,8 +46,10 @@ func pollCommand() *cobra.Command {
 			fmt.Println("Poll started...")
 			for {
 				select {
+				// Channel closed 
 				case <-ctx.Done():
 					return nil
+				// Results
 				case res, ok := <-results:
 					if !ok {
 						return nil
