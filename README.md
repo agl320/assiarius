@@ -1,6 +1,6 @@
 # assiarius
 
-Small CLI for polling Finviz screeners and hooking them up to Discord via webhook. Optionally send ticker statistics to LLM (Gemini Flash 3 in this case) for sentiment identification.
+Small CLI for polling Finviz screeners and hooking them up to Discord via webhook. Optionally send ticker statistics to an LLM (Gemini Flash 2.5 Lite by default) for sentiment identification.
 
 ## Setup
 
@@ -12,6 +12,7 @@ Optional:
 
 - `GEMINI_TIMEOUT` — request timeout (examples: `10s`, `1m`, `0s`)
 - `GEMINI_MIN_INTERVAL` — minimum delay between Gemini calls when using the poll/queue flow (examples: `2s`, `500ms`)
+- `GEMINI_MODEL` — override Gemini model name (default: `models/gemini-2.5-flash-lite`)
 
 ## Usage
 

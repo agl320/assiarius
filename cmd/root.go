@@ -37,6 +37,7 @@ var rootCmd = &cobra.Command{
 
 		cfg := llm.Config{
 			GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
+			Model:        os.Getenv("GEMINI_MODEL"),
 			Timeout:      llmTimeout,
 		}
 

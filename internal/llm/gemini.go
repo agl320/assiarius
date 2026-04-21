@@ -22,7 +22,7 @@ func NewGeminiClient(ctx context.Context, cfg Config) (*GeminiClient, error) {
 
 	model := cfg.Model
 	if model == "" {
-		model = "models/gemini-3-flash-preview"
+		model = "models/gemini-2.5-flash-lite"
 	}
 
 	return &GeminiClient{
