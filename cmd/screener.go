@@ -3,15 +3,18 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"assiarius/internal/screener"
+	"assiarius/internal/webhook"
 
 	"github.com/spf13/cobra"
 )
 
 func screenerCommand() *cobra.Command {
 	var includeNews bool
+	var sendWebhook bool
 
 	cmd := &cobra.Command{
 		Use:   "screen [preset]",
@@ -32,6 +35,15 @@ func screenerCommand() *cobra.Command {
 			if includeNews {
 				for _, res := range run.Results {
 					fmt.Println(screener.FormatScreenResult(res))
+					if sendWebhook {
+						payload := screener.FormatWebhookResult(res)
+						if payload != "" {
+							if err := webhook.NotifyDiscord(cmd.Context(), payload); err != nil {
+								fmt.Fprintln(os.Stderr, err)
+								log.Printf("screen: webhook error: %v", err)
+							}
+						}
+					}
 				}
 				return nil
 			}
@@ -46,12 +58,22 @@ func screenerCommand() *cobra.Command {
 				} else {
 					fmt.Printf("%d %s\n", i+1, ticker)
 				}
+				if sendWebhook {
+					payload := screener.FormatWebhookTicker(t)
+					if payload != "" {
+						if err := webhook.NotifyDiscord(cmd.Context(), payload); err != nil {
+							fmt.Fprintln(os.Stderr, err)
+							log.Printf("screen: webhook error: %v", err)
+						}
+					}
+				}
 			}
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVar(&includeNews, "news", false, "Fetch per-ticker news for screener results")
+	cmd.Flags().BoolVar(&sendWebhook, "webhook", false, "Send output to Discord via WEBHOOK_DISCORD_URL")
 
 	return cmd
 }

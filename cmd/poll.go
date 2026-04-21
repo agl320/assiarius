@@ -14,6 +14,8 @@ import (
 )
 
 func pollCommand() *cobra.Command {
+	var sendWebhook bool
+
 	cmd := &cobra.Command{
 		Use:   "poll [screenerURL] [window]",
 		Short: "Poll a Finviz screener URL for recent news",
@@ -60,14 +62,21 @@ func pollCommand() *cobra.Command {
 					msg := screener.FormatScreenResult(res)
 					fmt.Println(msg)
 					log.Printf("poll: result ticker=%s link=%s", strings.TrimSpace(res.Ticker), strings.TrimSpace(res.Latest.Link))
-					if err := webhook.NotifyDiscord(ctx, msg); err != nil {
-						fmt.Fprintln(os.Stderr, err)
-						log.Printf("poll: webhook error: %v", err)
+					if sendWebhook {
+						payload := screener.FormatWebhookResult(res)
+						if payload != "" {
+							if err := webhook.NotifyDiscord(ctx, payload); err != nil {
+								fmt.Fprintln(os.Stderr, err)
+								log.Printf("poll: webhook error: %v", err)
+							}
+						}
 					}
 				}
 			}
 		},
 	}
+
+	cmd.Flags().BoolVar(&sendWebhook, "webhook", false, "Send results to Discord via WEBHOOK_DISCORD_URL")
 
 	return cmd
 }

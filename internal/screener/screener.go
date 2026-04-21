@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -134,9 +135,14 @@ func AnalyzeLatestNews(
 
 	timeStr := strings.TrimSpace(strings.Join(strings.Fields(item.Time), " "))
 	text, _ := scraper.ExtractNewsFromLink(item.Link)
+	if strings.TrimSpace(text) == "" {
+		log.Printf("llm: empty extracted text ticker=%s link=%s headline=%q", strings.TrimSpace(strings.ToUpper(ticker)), strings.TrimSpace(item.Link), strings.TrimSpace(item.Headline))
+		return ScreenResult{Ticker: ticker, Volume: volume, Verdict: VerdictUndetermined, Latest: item}, nil
+	}
 
 	verdict, err := getVerdictFromGemini(ctx, text, llmClient)
 	if err != nil {
+		log.Printf("llm: error ticker=%s link=%s headline=%q err=%v", strings.TrimSpace(strings.ToUpper(ticker)), strings.TrimSpace(item.Link), strings.TrimSpace(item.Headline), err)
 		verdict = VerdictUndetermined
 	}
 
@@ -204,10 +210,21 @@ func getVerdictFromGemini(ctx context.Context, text string, llmClient llm.Client
 	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
+			log.Printf("llm: deadline exceeded")
 			return VerdictUndetermined, nil
 		}
 		return "", err
 	}
-	return normalizeVerdict(result), nil
+	normalized := normalizeVerdict(result)
+	if normalized == VerdictUndetermined {
+		trimmed := strings.TrimSpace(result)
+		if trimmed != "" {
+			if len(trimmed) > 120 {
+				trimmed = trimmed[:120]
+			}
+			log.Printf("llm: unexpected verdict output=%q", trimmed)
+		}
+	}
+	return normalized, nil
 }
 
