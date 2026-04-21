@@ -6,7 +6,7 @@ import (
 	"assiarius/internal/webhook"
 	"fmt"
 	"os"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -14,31 +14,24 @@ import (
 
 func pollCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "poll [screener] [intervalSeconds]",
-		Short: "Poll a Finviz screener",
+		Use:   "poll [screenerURL] [window]",
+		Short: "Poll a Finviz screener URL for recent news",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			// Default
-			interval := 15 * time.Second
+			interval := 5 * time.Minute
 			if len(args) == 2 {
-				// More flexible than parseInt()
-				if seconds, err := strconv.Atoi(args[1]); err == nil {
-					if seconds <= 0 {
-						return fmt.Errorf("intervalSeconds must be a positive integer, got %d", seconds)
-					}
-					interval = time.Duration(seconds) * time.Second
-				} else {
-					parsed, err := time.ParseDuration(args[1])
-					if err != nil {
-						return fmt.Errorf("invalid interval %q: use an integer number of seconds (e.g. 10) or a duration (e.g. 10s, 1m): %w", args[1], err)
-					}
-					if parsed <= 0 {
-						return fmt.Errorf("interval must be > 0, got %s", parsed)
-					}
-					interval = parsed
+				parsed, err := parsePollWindow(args[1])
+				if err != nil {
+					return err
 				}
+				interval = parsed
+			}
+
+			if _, err := screener.ValidateFinvizScreenerURL(args[0]); err != nil {
+				return err
 			}
 
 			results, err := poll.StartPoller(ctx, args[0], interval, app.LLM)
@@ -66,4 +59,24 @@ func pollCommand() *cobra.Command {
 	}
 
 	return cmd
+}
+
+func parsePollWindow(raw string) (time.Duration, error) {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	s = strings.ReplaceAll(s, " ", "")
+
+	switch s {
+	case "5m", "5min", "5mins", "last5min":
+		return 5 * time.Minute, nil
+	case "30m", "30min", "30mins", "last30min":
+		return 30 * time.Minute, nil
+	case "1h", "hour", "lasthour", "60m":
+		return 1 * time.Hour, nil
+	case "24h", "24hour", "24hours", "1d", "day":
+		return 24 * time.Hour, nil
+	case "7d", "7day", "7days", "week":
+		return 7 * 24 * time.Hour, nil
+	default:
+		return 0, fmt.Errorf("invalid poll window %q: use one of 5m, 30m, 1h, 24h, 7d", raw)
+	}
 }

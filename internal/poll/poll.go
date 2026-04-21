@@ -11,11 +11,15 @@ import (
 //
 // The poller stops when ctx is cancelled.
 func StartPoller(ctx context.Context, screen string, interval time.Duration, llmClient llm.Client) (<-chan screener.ScreenResult, error) {
-	queue := screener.NewLLMQueue(llmClient, screener.GetQueueMinInterval())
+	if _, err := screener.ValidateFinvizScreenerURL(screen); err != nil {
+		return nil, err
+	}
+
+	queue := screener.NewNewsQueue(llmClient, screener.GetQueueMinInterval())
 	go queue.Start(ctx)
 
 	// Enqueue once immediately so the first run doesn't wait a full interval.
-	if err := screener.EnqueueScreenTickers(ctx, screen, queue); err != nil {
+	if err := screener.EnqueueScreenNews(ctx, screen, interval, queue); err != nil {
 		return nil, err
 	}
 
@@ -27,7 +31,7 @@ func StartPoller(ctx context.Context, screen string, interval time.Duration, llm
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_ = screener.EnqueueScreenTickers(ctx, screen, queue)
+				_ = screener.EnqueueScreenNews(ctx, screen, interval, queue)
 			}
 		}
 	}()
