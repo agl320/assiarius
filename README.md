@@ -6,7 +6,7 @@ Small CLI for polling Finviz screeners and hooking them up to Discord via webhoo
 
 Create a `.env` file (or export env vars) with at least:
 
-- `GEMINI_API_KEY` — required
+- `GEMINI_API_KEY`
 
 Optional:
 
@@ -26,5 +26,5 @@ Optional:
 - Run a screener once:
   - `assi screen [preset]`
 
-- Run a screener once and fetch news verdicts (no queue):
+- Run a screener once and fetch news verdicts:
   - `assi screen [preset] --news`
